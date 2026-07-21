@@ -1,4 +1,4 @@
-const CACHE_NAME = "legendary-auto-spa-v13";
+const CACHE_NAME = "legendary-auto-spa-v14";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -48,4 +48,9 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(clients.openWindow("/admin"));
 });

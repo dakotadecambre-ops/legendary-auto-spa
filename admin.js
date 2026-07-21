@@ -22,6 +22,7 @@ const createTestBookingButton = document.querySelector("#createTestBookingButton
 const sendTestNotificationButton = document.querySelector("#sendTestNotificationButton");
 const refreshBookingsButton = document.querySelector("#refreshBookingsButton");
 const logoutButton = document.querySelector("#logoutButton");
+const enableAdminNotificationsButton = document.querySelector("#enableAdminNotificationsButton");
 const customerSearchInput = document.querySelector("#customerSearchInput");
 const clearCustomerSearchButton = document.querySelector("#clearCustomerSearchButton");
 const customerSearchStatus = document.querySelector("#customerSearchStatus");
@@ -37,6 +38,9 @@ const backendSetupLinks = {
   resend: "https://resend.com/api-keys"
 };
 let allBookings = [];
+let seenBookingIds = new Set();
+let bookingsLoadedOnce = false;
+let bookingPollTimer = null;
 
 function token() {
   return localStorage.getItem(ADMIN_TOKEN_KEY);
@@ -73,6 +77,7 @@ function applyRoleUi() {
   adminUsersPanel.classList.toggle("hidden", !isAdmin);
   createTestBookingButton.hidden = !canCreateTestBooking;
   sendTestNotificationButton.hidden = !canCreateTestBooking;
+  enableAdminNotificationsButton.hidden = !canCreateTestBooking;
 }
 
 function setLoggedIn(loggedIn) {
@@ -125,6 +130,7 @@ adminLoginForm.addEventListener("submit", async (event) => {
     if (hasAdminRole(["admin"])) await loadAdminUsers();
     await loadActivity();
     await loadBookings();
+    startBookingPolling();
   } catch (error) {
     adminStatus.textContent = error.message;
   }
@@ -143,6 +149,7 @@ logoutButton.addEventListener("click", () => {
 
 createTestBookingButton.addEventListener("click", createTestBooking);
 sendTestNotificationButton.addEventListener("click", sendTestNotification);
+enableAdminNotificationsButton.addEventListener("click", requestAdminNotificationPermission);
 
 customerSearchInput.addEventListener("input", renderFilteredBookings);
 clearCustomerSearchButton.addEventListener("click", () => {
@@ -167,11 +174,54 @@ async function loadBookings() {
   adminBookings.innerHTML = '<p class="empty-state">Loading bookings...</p>';
   try {
     const data = await api("admin-bookings");
-    allBookings = data.bookings || [];
+    const nextBookings = data.bookings || [];
+    notifyNewBookings(nextBookings);
+    allBookings = nextBookings;
     renderFilteredBookings();
   } catch (error) {
     adminBookings.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
   }
+}
+
+async function requestAdminNotificationPermission() {
+  if (!("Notification" in window)) {
+    adminActionStatus.textContent = "Browser alerts are not supported in this browser.";
+    return;
+  }
+
+  const permission = await Notification.requestPermission();
+  adminActionStatus.textContent = permission === "granted"
+    ? "Admin browser alerts are enabled while this dashboard is open."
+    : "Admin browser alerts were not enabled.";
+}
+
+function notifyNewBookings(bookings) {
+  const ids = new Set(bookings.map((booking) => booking.id).filter(Boolean));
+  if (!bookingsLoadedOnce) {
+    seenBookingIds = ids;
+    bookingsLoadedOnce = true;
+    return;
+  }
+
+  const newBookings = bookings.filter((booking) => booking.id && !seenBookingIds.has(booking.id));
+  seenBookingIds = ids;
+  if (!newBookings.length || !("Notification" in window) || Notification.permission !== "granted") return;
+
+  newBookings.forEach((booking) => {
+    new Notification("New Legendary Auto Spa request", {
+      body: `${booking.customer_name || "Customer"} requested ${booking.service_tier || "a detail"} for ${booking.preferred_date || "a new date"}.`,
+      icon: "assets/icon.svg",
+      tag: `booking-${booking.id}`
+    });
+  });
+}
+
+function startBookingPolling() {
+  if (bookingPollTimer) return;
+  bookingPollTimer = window.setInterval(() => {
+    if (dashboardPanel.classList.contains("hidden")) return;
+    loadBookings();
+  }, 45000);
 }
 
 function renderFilteredBookings() {
@@ -472,6 +522,14 @@ function renderBookings(bookings) {
     button.addEventListener("click", () => capturePayment(button.closest(".admin-booking")));
   });
 
+  adminBookings.querySelectorAll("[data-accept]").forEach((button) => {
+    button.addEventListener("click", () => quickUpdateBooking(button.closest(".admin-booking"), "scheduled"));
+  });
+
+  adminBookings.querySelectorAll("[data-decline]").forEach((button) => {
+    button.addEventListener("click", () => quickUpdateBooking(button.closest(".admin-booking"), "canceled"));
+  });
+
   adminBookings.querySelectorAll("[data-customer-history]").forEach((button) => {
     button.addEventListener("click", () => {
       customerSearchInput.value = button.dataset.customerHistory || "";
@@ -513,6 +571,8 @@ function renderBookingControls(booking, canUpdateBookings, canCapturePayment) {
         <textarea data-field="private_notes" placeholder="Internal notes">${escapeHtml(booking.private_notes || "")}</textarea>
       </label>
       <button class="primary-button" type="button" data-save>Save changes</button>
+      <button class="secondary-button" type="button" data-accept>Accept</button>
+      <button class="secondary-button" type="button" data-decline>Decline</button>
       ${canCapturePayment && booking.payment_intent_id ? '<button class="secondary-button" type="button" data-capture>Capture payment</button>' : ""}
     </div>
   `;
@@ -575,8 +635,9 @@ function pricingSummary(booking) {
   const savedTotal = moneyValue(booking.starting_price);
   const addOns = addOnTotal(booking.add_ons);
   const includesTotalBreakdown = /total/i.test(String(booking.starting_price || ""));
-  const packageOnly = includesTotalBreakdown ? Math.max(savedTotal - addOns, 0) || savedTotal : savedTotal;
-  const total = packageOnly + addOns;
+  const primaryMatch = String(booking.starting_price || "").match(/\$(\d+(?:\.\d{1,2})?) primary/i);
+  const packageOnly = primaryMatch ? Number(primaryMatch[1]) : includesTotalBreakdown ? Math.max(savedTotal - addOns, 0) || savedTotal : savedTotal;
+  const total = includesTotalBreakdown ? savedTotal : packageOnly + addOns;
   return {
     packageLabel: packageOnly ? `$${packageOnly}` : booking.starting_price || "Not set",
     addOnsLabel: addOns ? `$${addOns} add-ons` : "No add-ons selected",
@@ -630,6 +691,21 @@ async function saveBooking(card) {
   }
 }
 
+async function quickUpdateBooking(card, status) {
+  const button = card.querySelector(status === "scheduled" ? "[data-accept]" : "[data-decline]");
+  button.textContent = status === "scheduled" ? "Accepting..." : "Declining...";
+  try {
+    await api("update-booking", {
+      method: "PATCH",
+      body: JSON.stringify({ id: card.dataset.id, status })
+    });
+    button.textContent = status === "scheduled" ? "Accepted" : "Declined";
+    await loadBookings();
+  } catch (error) {
+    button.textContent = error.message;
+  }
+}
+
 async function capturePayment(card) {
   const id = card.dataset.id;
   const paymentIntentId = card.dataset.paymentIntentId;
@@ -677,6 +753,7 @@ if (token() && sessionIsValid()) {
   if (hasAdminRole(["admin"])) loadAdminUsers();
   loadActivity();
   loadBookings();
+  startBookingPolling();
 } else {
   if (token()) {
     clearAdminSession("Admin session expired. Log in again.");

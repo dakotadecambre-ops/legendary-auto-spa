@@ -275,6 +275,15 @@
                     </select>
                   </label>
                 </div>
+                <div class="additional-vehicles">
+                  <div class="section-inline-heading">
+                    <span>Additional vehicles</span>
+                    <button class="secondary-button compact-button" id="addVehicleButton" type="button">Add vehicle</button>
+                  </div>
+                  <div id="additionalVehiclesList" class="additional-vehicles-list">
+                    <p class="empty-state">No additional vehicles added.</p>
+                  </div>
+                </div>
               </fieldset>
 
               <fieldset>
@@ -295,6 +304,16 @@
                     Preferred time
                     <select name="time" required>
                       <option value="">Select window</option>
+                      <option>Morning</option>
+                      <option>Midday</option>
+                      <option>Afternoon</option>
+                      <option>Evening</option>
+                    </select>
+                  </label>
+                  <label>
+                    Secondary time
+                    <select name="secondaryTime">
+                      <option value="">Select backup window</option>
                       <option>Morning</option>
                       <option>Midday</option>
                       <option>Afternoon</option>
@@ -373,6 +392,13 @@
             <aside class="payment-note">
               <strong>Live payment note</strong>
               <p>Card details are collected only inside Stripe Payment Element. Legendary Auto Spa can authorize first, then capture from the admin dashboard after approval.</p>
+            </aside>
+
+            <aside class="payment-note">
+              <strong>App notifications</strong>
+              <p>Allow browser notifications so Legendary Auto Spa can update this device when supported by the browser.</p>
+              <button class="secondary-button full-width" id="enableCustomerNotificationsButton" type="button">Enable notifications</button>
+              <p class="form-status" id="customerNotificationStatus" role="status"></p>
             </aside>
 
             <div class="stripe-panel hidden" id="stripePanel">

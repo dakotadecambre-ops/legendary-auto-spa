@@ -38,11 +38,16 @@ const authorizePaymentButton = document.querySelector("#authorizePaymentButton")
 const requestList = document.querySelector("#requestList");
 const historyCount = document.querySelector("#historyCount");
 const installButton = document.querySelector("#installButton");
+const addVehicleButton = document.querySelector("#addVehicleButton");
+const additionalVehiclesList = document.querySelector("#additionalVehiclesList");
+const enableCustomerNotificationsButton = document.querySelector("#enableCustomerNotificationsButton");
+const customerNotificationStatus = document.querySelector("#customerNotificationStatus");
 
 let deferredInstallPrompt = null;
 let currentStep = 0;
 let stripeInstance = null;
 let stripeElements = null;
+let additionalVehicles = [];
 
 const priceDatasetKeys = {
   cars: "priceCars",
@@ -108,21 +113,46 @@ function selectedAddOns() {
   }));
 }
 
+function tierOptions() {
+  return [...document.querySelectorAll("input[name='tier']")].map((input) => ({
+    name: input.value,
+    prices: {
+      cars: moneyValue(input.dataset.priceCars),
+      suvs: moneyValue(input.dataset.priceSuvs),
+      trucks: moneyValue(input.dataset.priceTrucks)
+    }
+  }));
+}
+
+function additionalVehiclePrice(vehicle) {
+  const option = tierOptions().find((tier) => tier.name === vehicle.tier) || tierOptions()[0];
+  return option?.prices?.[vehicle.size] || 0;
+}
+
+function additionalVehiclesTotal() {
+  return additionalVehicles.reduce((sum, vehicle) => sum + additionalVehiclePrice(vehicle), 0);
+}
+
 function priceSummary() {
   const tier = getSelectedTier();
   const addOns = selectedAddOns();
   const addOnsTotal = addOns.reduce((sum, addOn) => sum + addOn.amount, 0);
   const packagePrice = moneyValue(tier.price);
-  const total = packagePrice + addOnsTotal;
+  const extraVehiclesTotal = additionalVehiclesTotal();
+  const total = packagePrice + extraVehiclesTotal + addOnsTotal;
   const addOnLabel = addOnsTotal > 0 ? ` + $${addOnsTotal} add-ons` : "";
+  const vehicleLabel = extraVehiclesTotal > 0 ? ` + $${extraVehiclesTotal} extra vehicles` : "";
 
   return {
     ...tier,
     packagePrice,
+    extraVehiclesTotal,
     addOnsTotal,
     total,
-    displayPrice: vehicleSizeSelect.value ? `$${total}${addOnLabel}` : `From $${packagePrice}`,
-    startingPrice: addOnsTotal > 0 ? `$${total} total ($${packagePrice} package + $${addOnsTotal} add-ons)` : `$${packagePrice}`
+    displayPrice: vehicleSizeSelect.value ? `$${total}${vehicleLabel}${addOnLabel}` : `From $${packagePrice}`,
+    startingPrice: total !== packagePrice
+      ? `$${total} total ($${packagePrice} primary + $${extraVehiclesTotal} extra vehicles + $${addOnsTotal} add-ons)`
+      : `$${packagePrice}`
   };
 }
 
@@ -154,6 +184,76 @@ function syncVehicleClass(vehicleType) {
     option.classList.toggle("selected", input.checked);
   });
   updateTierSelection();
+}
+
+function renderAdditionalVehicles() {
+  if (!additionalVehicles.length) {
+    additionalVehiclesList.innerHTML = '<p class="empty-state">No additional vehicles added.</p>';
+    updateTierSelection();
+    return;
+  }
+
+  const tiers = tierOptions();
+  additionalVehiclesList.innerHTML = additionalVehicles.map((vehicle, index) => `
+    <article class="additional-vehicle-card" data-vehicle-index="${index}">
+      <div class="section-inline-heading">
+        <span>Vehicle ${index + 2}</span>
+        <button class="ghost-button compact-button" type="button" data-remove-vehicle>Remove</button>
+      </div>
+      <div class="grid-two">
+        <label>
+          Year
+          <input data-extra-field="year" type="number" inputmode="numeric" min="1950" max="2035" value="${escapeAttribute(vehicle.year || "")}" placeholder="2022">
+        </label>
+        <label>
+          Make
+          <input data-extra-field="make" type="text" value="${escapeAttribute(vehicle.make || "")}" placeholder="Toyota">
+        </label>
+      </div>
+      <div class="grid-two">
+        <label>
+          Model
+          <input data-extra-field="model" type="text" value="${escapeAttribute(vehicle.model || "")}" placeholder="Camry">
+        </label>
+        <label>
+          Vehicle class
+          <select data-extra-field="size">
+            ${Object.entries(vehicleTypeLabels).map(([value, label]) => `<option value="${value}" ${vehicle.size === value ? "selected" : ""}>${label}</option>`).join("")}
+          </select>
+        </label>
+      </div>
+      <label>
+        Wash package
+        <select data-extra-field="tier">
+          ${tiers.map((tier) => `<option value="${escapeAttribute(tier.name)}" ${vehicle.tier === tier.name ? "selected" : ""}>${escapeHtml(tier.name)}</option>`).join("")}
+        </select>
+      </label>
+      <p class="vehicle-price-line">Vehicle price: $${additionalVehiclePrice(vehicle)}</p>
+    </article>
+  `).join("");
+
+  updateTierSelection();
+}
+
+function addAdditionalVehicle() {
+  additionalVehicles.push({
+    year: "",
+    make: "",
+    model: "",
+    size: getSelectedVehicleType(),
+    tier: getSelectedTier().name
+  });
+  renderAdditionalVehicles();
+}
+
+function additionalVehiclesSummary() {
+  return additionalVehicles
+    .map((vehicle, index) => {
+      const vehicleName = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ") || `Vehicle ${index + 2}`;
+      const size = vehicleTypeLabels[vehicle.size] || vehicle.size || "Vehicle";
+      return `${index + 2}. ${vehicleName} - ${size} - ${vehicle.tier} ($${additionalVehiclePrice(vehicle)})`;
+    })
+    .join("; ");
 }
 
 function getSelectedFocus() {
@@ -208,9 +308,15 @@ function getRequestData() {
   const formData = new FormData(form);
   const data = Object.fromEntries(formData.entries());
   const tier = priceSummary();
+  const extraVehicles = additionalVehiclesSummary();
+  const timingNote = data.secondaryTime ? `Secondary time: ${data.secondaryTime}` : "";
+  const vehicleNote = extraVehicles ? `Additional vehicles: ${extraVehicles}` : "";
+  const combinedNotes = [data.notes, timingNote, vehicleNote].filter(Boolean).join("\n\n");
   return {
     ...data,
     addOns: formData.getAll("addOns").join(", "),
+    additionalVehicles: extraVehicles,
+    notes: combinedNotes,
     size: vehicleTypeLabels[tier.vehicleType] || data.size,
     tier: tier.name,
     startingPrice: tier.startingPrice,
@@ -228,6 +334,7 @@ function formatRequestMessage(request) {
     `Goal: ${request.focusGoal}`,
     `Recommended: ${request.recommendedTier}`,
     request.addOns ? `Add-ons: ${request.addOns}` : null,
+    request.additionalVehicles ? `Additional vehicles: ${request.additionalVehicles}` : null,
     `Payment preference: ${request.paymentPreference || getSelectedPaymentPreference()}`,
     `Name: ${request.name}`,
     `Phone: ${request.phone}`,
@@ -235,6 +342,7 @@ function formatRequestMessage(request) {
     `Vehicle: ${[request.year, request.make, request.model].filter(Boolean).join(" ")} (${request.size})`,
     `Address: ${request.address}`,
     `Preferred: ${request.date} ${request.time}`,
+    request.secondaryTime ? `Secondary time: ${request.secondaryTime}` : null,
     request.notes ? `Notes: ${request.notes}` : null
   ].filter(Boolean).join("\n");
 }
@@ -279,8 +387,9 @@ function renderRequests() {
           <div><span>Package</span><strong>${escapeHtml(request.tier || "Detail request")}</strong><p>${escapeHtml(receipt.packageLabel)}</p></div>
           <div><span>Add-ons</span><strong>${escapeHtml(request.addOns || "None")}</strong><p>${escapeHtml(receipt.addOnsLabel)}</p></div>
           <div><span>Total</span><strong>${escapeHtml(receipt.totalLabel)}</strong><p>Package plus selected add-ons</p></div>
+          <div><span>Extra vehicles</span><strong>${escapeHtml(request.additionalVehicles || "None")}</strong><p>${escapeHtml(request.additionalVehicles ? "Included in total" : "Single vehicle request")}</p></div>
           <div><span>Payment</span><strong>${escapeHtml(request.paymentPreference || "Request now")}</strong><p>${escapeHtml(request.paymentStatus || "Pending review")}</p></div>
-          <div><span>Schedule</span><strong>${escapeHtml(request.date || "No date")}</strong><p>${escapeHtml(request.time || "No time")}</p></div>
+          <div><span>Schedule</span><strong>${escapeHtml(request.date || "No date")}</strong><p>${escapeHtml([request.time, request.secondaryTime ? `Backup: ${request.secondaryTime}` : ""].filter(Boolean).join(" · ") || "No time")}</p></div>
           <div><span>Location</span><strong>${escapeHtml(request.address || "No address added")}</strong><p>${escapeHtml(request.notes || "")}</p></div>
           <div><span>Focus</span><strong>${escapeHtml(request.focusArea || "No focus selected")}</strong><p>${escapeHtml(request.focusGoal || "")}</p></div>
         </div>
@@ -293,8 +402,9 @@ function receiptSummary(request) {
   const savedTotal = moneyValue(request.startingPrice);
   const addOns = addOnTotal(request.addOns);
   const includesTotalBreakdown = /total/i.test(String(request.startingPrice || ""));
-  const packageOnly = includesTotalBreakdown ? Math.max(savedTotal - addOns, 0) || savedTotal : savedTotal;
-  const total = packageOnly + addOns;
+  const primaryMatch = String(request.startingPrice || "").match(/\$(\d+(?:\.\d{1,2})?) primary/i);
+  const packageOnly = primaryMatch ? Number(primaryMatch[1]) : includesTotalBreakdown ? Math.max(savedTotal - addOns, 0) || savedTotal : savedTotal;
+  const total = includesTotalBreakdown ? savedTotal : packageOnly + addOns;
   return {
     packageLabel: packageOnly ? `$${packageOnly}` : request.startingPrice || "Not set",
     addOnsLabel: addOns ? `$${addOns} add-ons` : "No add-ons selected",
@@ -441,6 +551,32 @@ vehicleClassOptions.forEach((option) => {
   });
 });
 
+addVehicleButton.addEventListener("click", addAdditionalVehicle);
+
+additionalVehiclesList.addEventListener("input", (event) => {
+  const card = event.target.closest("[data-vehicle-index]");
+  const field = event.target.dataset.extraField;
+  if (!card || !field) return;
+  additionalVehicles[Number(card.dataset.vehicleIndex)][field] = event.target.value;
+  updateTierSelection();
+});
+
+additionalVehiclesList.addEventListener("change", (event) => {
+  const card = event.target.closest("[data-vehicle-index]");
+  const field = event.target.dataset.extraField;
+  if (!card || !field) return;
+  additionalVehicles[Number(card.dataset.vehicleIndex)][field] = event.target.value;
+  renderAdditionalVehicles();
+});
+
+additionalVehiclesList.addEventListener("click", (event) => {
+  const removeButton = event.target.closest("[data-remove-vehicle]");
+  if (!removeButton) return;
+  const card = removeButton.closest("[data-vehicle-index]");
+  additionalVehicles.splice(Number(card.dataset.vehicleIndex), 1);
+  renderAdditionalVehicles();
+});
+
 tierCards.forEach((card) => {
   card.addEventListener("click", () => {
     window.setTimeout(() => {
@@ -585,6 +721,18 @@ locateButton.addEventListener("click", () => {
 
 form.querySelectorAll("input[name='addOns']").forEach((input) => {
   input.addEventListener("change", updateTierSelection);
+});
+
+enableCustomerNotificationsButton.addEventListener("click", async () => {
+  if (!("Notification" in window)) {
+    customerNotificationStatus.textContent = "Notifications are not supported in this browser.";
+    return;
+  }
+
+  const permission = await Notification.requestPermission();
+  customerNotificationStatus.textContent = permission === "granted"
+    ? "Notifications are enabled on this device."
+    : "Notifications were not enabled. You can allow them later in browser settings.";
 });
 
 window.addEventListener("beforeinstallprompt", (event) => {

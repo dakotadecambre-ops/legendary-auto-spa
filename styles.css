@@ -716,6 +716,49 @@ textarea:focus {
   gap: 10px;
 }
 
+.section-inline-heading {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 0 12px;
+}
+
+.section-inline-heading span {
+  color: var(--gold);
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.compact-button {
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 0.82rem;
+}
+
+.additional-vehicles {
+  margin-top: 14px;
+}
+
+.additional-vehicles-list {
+  display: grid;
+  gap: 10px;
+}
+
+.additional-vehicle-card {
+  padding: 12px;
+  border: 1px solid rgba(214, 184, 112, 0.18);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.vehicle-price-line {
+  margin: 10px 0 0;
+  color: var(--gold-bright);
+  font-weight: 850;
+}
+
 .location-row {
   display: grid;
   grid-template-columns: 1fr auto;
