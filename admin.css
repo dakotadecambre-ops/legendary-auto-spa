@@ -268,6 +268,24 @@
   line-height: 1.4;
 }
 
+.health-card a,
+.booking-meta a {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 10px;
+  color: var(--gold-bright);
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(244, 217, 140, 0.45);
+}
+
+.health-card a:hover,
+.booking-meta a:hover {
+  color: white;
+  border-bottom-color: white;
+}
+
 .stat-card {
   padding: 14px;
   border: 1px solid rgba(214, 184, 112, 0.2);
@@ -364,9 +382,7 @@
 
 .backend-records p {
   color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 0.74rem;
-  overflow-wrap: anywhere;
+  font-size: 0.82rem;
 }
 
 .booking-controls {

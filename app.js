@@ -94,8 +94,39 @@ function getTierPrice(input, vehicleType) {
   return input.dataset[priceDatasetKeys[vehicleType] || "priceCars"] || input.dataset.priceCars;
 }
 
-function updateTierSelection() {
+function moneyValue(value) {
+  const match = String(value || "").match(/\d+(?:\.\d{1,2})?/);
+  const numeric = Number(match?.[0] || 0);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function selectedAddOns() {
+  return [...form.querySelectorAll("input[name='addOns']:checked")].map((input) => ({
+    label: input.value,
+    amount: moneyValue(input.value)
+  }));
+}
+
+function priceSummary() {
   const tier = getSelectedTier();
+  const addOns = selectedAddOns();
+  const addOnsTotal = addOns.reduce((sum, addOn) => sum + addOn.amount, 0);
+  const packagePrice = moneyValue(tier.price);
+  const total = packagePrice + addOnsTotal;
+  const addOnLabel = addOnsTotal > 0 ? ` + $${addOnsTotal} add-ons` : "";
+
+  return {
+    ...tier,
+    packagePrice,
+    addOnsTotal,
+    total,
+    displayPrice: vehicleSizeSelect.value ? `$${total}${addOnLabel}` : `From $${packagePrice}`,
+    startingPrice: addOnsTotal > 0 ? `$${total} total ($${packagePrice} package + $${addOnsTotal} add-ons)` : `$${packagePrice}`
+  };
+}
+
+function updateTierSelection() {
+  const tier = priceSummary();
   tierCards.forEach((card) => {
     const input = card.querySelector("input");
     card.classList.toggle("selected", input.checked);
@@ -175,13 +206,13 @@ function getRequestData() {
   if (!formStartedAtInput.value) formStartedAtInput.value = new Date().toISOString();
   const formData = new FormData(form);
   const data = Object.fromEntries(formData.entries());
-  const tier = getSelectedTier();
+  const tier = priceSummary();
   return {
     ...data,
     addOns: formData.getAll("addOns").join(", "),
     size: vehicleTypeLabels[tier.vehicleType] || data.size,
     tier: tier.name,
-    startingPrice: `$${tier.price}`,
+    startingPrice: tier.startingPrice,
     createdAt: new Date().toISOString()
   };
 }
@@ -496,6 +527,10 @@ locateButton.addEventListener("click", () => {
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
   );
+});
+
+form.querySelectorAll("input[name='addOns']").forEach((input) => {
+  input.addEventListener("change", updateTierSelection);
 });
 
 window.addEventListener("beforeinstallprompt", (event) => {

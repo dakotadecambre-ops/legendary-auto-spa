@@ -264,7 +264,8 @@ function tierAmountCents(tier, startingPrice) {
   const configuredHold = Number(process.env.DEFAULT_PREAUTH_AMOUNT_CENTS || 0);
   if (configuredHold > 0) return configuredHold;
 
-  const numeric = Number(String(startingPrice || "").replace(/[^0-9.]/g, ""));
+  const match = String(startingPrice || "").match(/\d+(?:\.\d{1,2})?/);
+  const numeric = Number(match?.[0] || 0);
   if (Number.isFinite(numeric) && numeric > 0) return Math.round(numeric * 100);
 
   const packageMap = {

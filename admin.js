@@ -25,6 +25,14 @@ const logoutButton = document.querySelector("#logoutButton");
 
 const statuses = ["new", "contacted", "scheduled", "in_progress", "complete", "canceled"];
 const paymentStatuses = ["not_started", "pending", "requires_capture", "succeeded", "canceled", "failed"];
+const backendSetupLinks = {
+  netlify: "https://app.netlify.com/sites/legendaryautospa/configuration/env",
+  supabase: "https://supabase.com/dashboard/projects",
+  twilio: "https://console.twilio.com/us1/develop/phone-numbers/manage/incoming",
+  stripe: "https://dashboard.stripe.com/apikeys",
+  stripeWebhooks: "https://dashboard.stripe.com/webhooks",
+  resend: "https://resend.com/api-keys"
+};
 
 function token() {
   return localStorage.getItem(ADMIN_TOKEN_KEY);
@@ -320,7 +328,7 @@ async function saveAdminUserFromCard(card) {
 }
 
 function renderHealth(data) {
-  const checks = Object.values(data.checks || {});
+  const checks = Object.entries(data.checks || {});
   if (!checks.length) {
     systemStatus.innerHTML = '<p class="empty-state">No system checks returned.</p>';
     return;
@@ -335,15 +343,42 @@ function renderHealth(data) {
       <span class="status-pill">${data.ok ? "Live ready" : "Needs setup"}</span>
     </div>
     <div class="health-grid">
-      ${checks.map((check) => `
+      ${checks.map(([key, check]) => {
+        const link = healthLinkFor(key, check);
+        return `
         <article class="health-card ${check.ok ? "ok" : "warn"}">
           <span>${check.ok ? "Ready" : "Needs setup"}</span>
           <strong>${escapeHtml(check.label)}</strong>
           <p>${escapeHtml(check.detail)}</p>
+          <a href="${escapeAttribute(link.href)}" target="_blank" rel="noopener">${escapeHtml(link.label)}</a>
         </article>
-      `).join("")}
+      `;
+      }).join("")}
     </div>
   `;
+}
+
+function healthLinkFor(key, check) {
+  const label = String(check?.label || "").toLowerCase();
+  if (key.includes("sms") || label.includes("sms") || label.includes("twilio")) {
+    return { href: backendSetupLinks.twilio, label: "Open Twilio SMS settings" };
+  }
+  if (key.includes("email") || label.includes("email")) {
+    return { href: backendSetupLinks.resend, label: "Open email settings" };
+  }
+  if (key.includes("stripe_webhook") || label.includes("webhook")) {
+    return { href: backendSetupLinks.stripeWebhooks, label: "Open Stripe webhooks" };
+  }
+  if (key.includes("stripe") || label.includes("stripe") || label.includes("payment")) {
+    return { href: backendSetupLinks.stripe, label: "Open Stripe payments" };
+  }
+  if (key.includes("schema") || key.includes("constraint") || label.includes("schema") || label.includes("constraint")) {
+    return { href: backendSetupLinks.supabase, label: "Open Supabase SQL editor" };
+  }
+  if (key.includes("supabase") || label.includes("supabase") || label.includes("database")) {
+    return { href: backendSetupLinks.supabase, label: "Open Supabase project" };
+  }
+  return { href: backendSetupLinks.netlify, label: "Open Netlify environment variables" };
 }
 
 function renderBookings(bookings) {
@@ -355,7 +390,10 @@ function renderBookings(bookings) {
 
   const canUpdateBookings = hasAdminRole(["admin", "manager"]);
   const canCapturePayment = hasAdminRole(["admin"]);
-  adminBookings.innerHTML = bookings.map((booking) => `
+  adminBookings.innerHTML = bookings.map((booking) => {
+    const pricing = pricingSummary(booking);
+    const mapsUrl = googleMapsUrl(booking.service_address);
+    return `
     <article class="admin-booking" data-id="${escapeAttribute(booking.id || "")}" data-payment-intent-id="${escapeAttribute(booking.payment_intent_id || "")}">
       <div class="booking-head">
         <div>
@@ -366,22 +404,24 @@ function renderBookings(bookings) {
       </div>
 
       <div class="booking-meta">
-        <div><span>Package</span><strong>${escapeHtml(booking.service_tier)}</strong><p>${escapeHtml(booking.starting_price)}</p></div>
+        <div><span>Package</span><strong>${escapeHtml(booking.service_tier)}</strong><p>${escapeHtml(pricing.packageLabel)}</p></div>
         <div><span>Vehicle</span><strong>${escapeHtml([booking.vehicle_year, booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(" "))}</strong><p>${escapeHtml(booking.vehicle_size)}</p></div>
         <div><span>Focus</span><strong>${escapeHtml(booking.focus_area)}</strong><p>${escapeHtml(booking.focus_goal)}</p></div>
-        <div><span>Add-ons</span><strong>${escapeHtml(booking.add_ons || "None")}</strong><p>Specialty services</p></div>
+        <div><span>Add-ons</span><strong>${escapeHtml(booking.add_ons || "None")}</strong><p>${escapeHtml(pricing.addOnsLabel)}</p></div>
+        <div><span>Estimated total</span><strong>${escapeHtml(pricing.totalLabel)}</strong><p>Package plus selected add-ons</p></div>
         <div><span>Schedule</span><strong>${escapeHtml(booking.preferred_date)}</strong><p>${escapeHtml(booking.preferred_time)}</p></div>
-        <div><span>Location</span><strong>${escapeHtml(booking.service_address)}</strong><p>${escapeHtml(booking.notes)}</p></div>
+        <div><span>Location</span><strong>${escapeHtml(booking.service_address)}</strong><p>${escapeHtml(booking.notes)}</p>${mapsUrl ? `<a href="${escapeAttribute(mapsUrl)}" target="_blank" rel="noopener">Open in Google Maps</a>` : ""}</div>
         <div><span>Payment</span><strong>${escapeHtml(booking.payment_preference)}</strong><p>${escapeHtml(booking.payment_status)}</p></div>
         <div><span>Assigned</span><strong>${escapeHtml(booking.assigned_to || "Unassigned")}</strong><p>${formatDate(booking.created_at)}</p></div>
-        <div><span>Stripe</span><strong>${escapeHtml(booking.payment_intent_id || "None")}</strong><p>${escapeHtml(booking.recommended_tier || "")}</p></div>
+        <div><span>Stripe</span><strong>${escapeHtml(shortReference(booking.payment_intent_id) || "None")}</strong><p>${escapeHtml(booking.recommended_tier || "")}</p></div>
       </div>
 
       ${renderBackendRecords(booking)}
 
       ${renderBookingControls(booking, canUpdateBookings, canCapturePayment)}
     </article>
-  `).join("");
+  `;
+  }).join("");
 
   adminBookings.querySelectorAll("[data-save]").forEach((button) => {
     button.addEventListener("click", () => saveBooking(button.closest(".admin-booking")));
@@ -436,25 +476,65 @@ function renderBackendRecords(booking) {
       <div>
         <span>Customer record</span>
         <strong>${escapeHtml(customer?.name || booking.customer_name || "Missing")}</strong>
-        <p>${escapeHtml(customer?.id || "Not linked yet")}</p>
+        <p>${escapeHtml(recordStatus(customer))}</p>
       </div>
       <div>
         <span>Vehicle record</span>
         <strong>${escapeHtml([vehicle?.year, vehicle?.make, vehicle?.model].filter(Boolean).join(" ") || "Missing")}</strong>
-        <p>${escapeHtml(vehicle?.id || "Not linked yet")}</p>
+        <p>${escapeHtml(recordStatus(vehicle))}</p>
       </div>
       <div>
         <span>Location record</span>
         <strong>${escapeHtml(location?.address || booking.service_address || "Missing")}</strong>
-        <p>${escapeHtml(location?.id || "Not linked yet")}</p>
+        <p>${escapeHtml(recordStatus(location))}</p>
       </div>
       <div>
         <span>Job record</span>
         <strong>${escapeHtml(job?.status || booking.status || "Missing")}</strong>
-        <p>${escapeHtml(job?.id || "Not linked yet")}</p>
+        <p>${escapeHtml(recordStatus(job))}</p>
       </div>
     </div>
   `;
+}
+
+function recordStatus(record) {
+  return record?.id ? "Linked in backend" : "Not linked yet";
+}
+
+function googleMapsUrl(address) {
+  const value = String(address || "").trim();
+  return value ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}` : "";
+}
+
+function moneyValue(value) {
+  const match = String(value || "").match(/\d+(?:\.\d{1,2})?/);
+  const numeric = Number(match?.[0] || 0);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function addOnTotal(addOns) {
+  return String(addOns || "")
+    .split(",")
+    .reduce((sum, item) => sum + moneyValue(item), 0);
+}
+
+function pricingSummary(booking) {
+  const savedTotal = moneyValue(booking.starting_price);
+  const addOns = addOnTotal(booking.add_ons);
+  const includesTotalBreakdown = /total/i.test(String(booking.starting_price || ""));
+  const packageOnly = includesTotalBreakdown ? Math.max(savedTotal - addOns, 0) || savedTotal : savedTotal;
+  const total = packageOnly + addOns;
+  return {
+    packageLabel: packageOnly ? `$${packageOnly}` : booking.starting_price || "Not set",
+    addOnsLabel: addOns ? `$${addOns} add-ons` : "No add-ons selected",
+    totalLabel: total ? `$${total}` : booking.starting_price || "Not set"
+  };
+}
+
+function shortReference(value) {
+  const text = String(value || "");
+  if (!text) return "";
+  return text.length > 18 ? `${text.slice(0, 12)}...` : text;
 }
 
 function renderStats(bookings) {
