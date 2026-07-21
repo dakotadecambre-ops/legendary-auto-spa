@@ -1,4 +1,6 @@
-const MEMBER_ACCOUNTS_KEY = "legendary-auto-spa.memberAccounts";
+const MEMBER_SESSION_KEY = "legendary-auto-spa.memberSession";
+const MEMBER_TOKEN_KEY = "legendary-auto-spa.memberToken";
+const MEMBER_PROFILE_KEY = "legendary-auto-spa.memberProfile";
 
 const createMemberForm = document.querySelector("#createMemberForm");
 const createMemberStatus = document.querySelector("#createMemberStatus");
@@ -7,19 +9,27 @@ function normalizePhone(value) {
   return String(value || "").replace(/\D/g, "");
 }
 
-function readAccounts() {
-  try {
-    return JSON.parse(localStorage.getItem(MEMBER_ACCOUNTS_KEY)) || {};
-  } catch {
-    return {};
-  }
+async function memberApi(path, options = {}) {
+  const result = await fetch(`/.netlify/functions/${path}`, {
+    ...options,
+    headers: {
+      "content-type": "application/json",
+      ...(options.headers || {})
+    }
+  });
+  const data = await result.json().catch(() => ({}));
+  if (!result.ok) throw new Error(data.error || "Request failed");
+  return data;
 }
 
-function saveAccounts(accounts) {
-  localStorage.setItem(MEMBER_ACCOUNTS_KEY, JSON.stringify(accounts));
+function saveMemberSession(data) {
+  if (!data?.token || !data?.member) return;
+  localStorage.setItem(MEMBER_TOKEN_KEY, data.token);
+  localStorage.setItem(MEMBER_SESSION_KEY, data.member.phone || "");
+  localStorage.setItem(MEMBER_PROFILE_KEY, JSON.stringify(data.member));
 }
 
-createMemberForm.addEventListener("submit", (event) => {
+createMemberForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(createMemberForm);
   const phone = normalizePhone(formData.get("phone"));
@@ -29,35 +39,33 @@ createMemberForm.addEventListener("submit", (event) => {
     return;
   }
 
-  const accounts = readAccounts();
-  if (accounts[phone]) {
-    createMemberStatus.textContent = "That phone already has an account. Go back and sign in.";
-    return;
-  }
-
   const vehicle = {
     year: String(formData.get("year") || "").trim(),
     make: String(formData.get("make") || "").trim(),
     model: String(formData.get("model") || "").trim(),
     size: String(formData.get("size") || "").trim(),
-    tier: "",
-    savedAt: new Date().toISOString()
+    tier: ""
   };
-
   const address = String(formData.get("address") || "").trim();
-  accounts[phone] = {
-    name: String(formData.get("name") || "").trim(),
-    phone,
-    password,
-    vehicles: vehicle.make || vehicle.model ? [vehicle] : [],
-    locations: address ? [{ label: "Primary", address, savedAt: new Date().toISOString() }] : [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
 
-  saveAccounts(accounts);
-  createMemberStatus.textContent = "Account created. Sending you to member sign-in...";
-  window.setTimeout(() => {
-    window.location.href = "member.html";
-  }, 800);
+  createMemberStatus.textContent = "Creating your member account...";
+  try {
+    const data = await memberApi("member-create-account", {
+      method: "POST",
+      body: JSON.stringify({
+        name: String(formData.get("name") || "").trim(),
+        phone,
+        password,
+        vehicles: vehicle.make || vehicle.model ? [vehicle] : [],
+        locations: address ? [{ label: "Primary", address }] : []
+      })
+    });
+    saveMemberSession(data);
+    createMemberStatus.textContent = "Account created. Opening your member portal...";
+    window.setTimeout(() => {
+      window.location.href = "member.html#portal";
+    }, 700);
+  } catch (error) {
+    createMemberStatus.textContent = error.message;
+  }
 });

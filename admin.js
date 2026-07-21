@@ -294,30 +294,53 @@ function readMemberAccounts() {
   }
 }
 
-function renderMembers() {
-  const members = Object.values(readMemberAccounts());
+async function renderMembers() {
+  membersList.innerHTML = '<p class="empty-state">Loading members...</p>';
+  let members = [];
+  try {
+    const data = await api("admin-members");
+    members = data.members || [];
+  } catch (error) {
+    members = Object.values(readMemberAccounts());
+    if (!members.length) {
+      membersList.innerHTML = `<p class="empty-state">${escapeHtml(error.message || "No member accounts found.")}</p>`;
+      return;
+    }
+  }
+
   if (!members.length) {
-    membersList.innerHTML = '<p class="empty-state">No member accounts saved in this browser yet. Backend member storage is needed to see members from every customer device.</p>';
+    membersList.innerHTML = '<p class="empty-state">No member accounts yet.</p>';
     return;
   }
 
   membersList.innerHTML = members.map((member) => {
-    const vehicles = (member.vehicles || []).map((vehicle) => [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ")).filter(Boolean);
-    const locations = (member.locations || []).map((location) => location.address).filter(Boolean);
+    const vehicles = (member.vehicles || member.member_vehicles || []).map((vehicle) => [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ")).filter(Boolean);
+    const locations = (member.locations || member.member_locations || []).map((location) => location.address).filter(Boolean);
+    const requests = member.recent_requests || [];
+    const latestRequest = requests[0];
     return `
       <article class="activity-item">
         <div>
-          <strong>${escapeHtml(member.name || "Member")} · ${escapeHtml(formatPhone(member.phone || ""))}</strong>
+          <strong><button class="customer-history-button" type="button" data-member-history="${escapeAttribute(member.phone || "")}">${escapeHtml(member.name || "Member")}</button> · ${escapeHtml(formatPhone(member.phone || ""))}</strong>
           <p>${escapeHtml(vehicles.length ? vehicles.join(" | ") : "No saved vehicles")}</p>
           <small>${escapeHtml(locations.length ? locations.join(" | ") : "No saved locations")}</small>
+          ${latestRequest ? `<small>Latest: ${escapeHtml(latestRequest.service_tier || "Detail request")} · ${escapeHtml(latestRequest.status || "new")} · ${formatDate(latestRequest.created_at)}</small>` : ""}
         </div>
         <span>
-          member
-          <small>${formatDate(member.updatedAt || member.createdAt)}</small>
+          ${requests.length} request${requests.length === 1 ? "" : "s"}
+          <small>${formatDate(member.updated_at || member.updatedAt || member.created_at || member.createdAt)}</small>
         </span>
       </article>
     `;
   }).join("");
+
+  membersList.querySelectorAll("[data-member-history]").forEach((button) => {
+    button.addEventListener("click", () => {
+      customerSearchInput.value = button.dataset.memberHistory || "";
+      renderFilteredBookings();
+      customerSearchInput.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  });
 }
 
 async function loadHealth() {

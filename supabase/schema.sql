@@ -152,6 +152,70 @@ alter table public.admin_users drop constraint if exists admin_users_role_check;
 alter table public.admin_users add constraint admin_users_role_check
 check (role in ('admin', 'manager', 'viewer'));
 
+create table if not exists public.member_accounts (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  phone text not null unique,
+  email text,
+  password_hash text not null,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists member_accounts_phone_idx on public.member_accounts (phone);
+create index if not exists member_accounts_email_idx on public.member_accounts (email);
+create index if not exists member_accounts_active_idx on public.member_accounts (active);
+
+create table if not exists public.member_vehicles (
+  id uuid primary key default gen_random_uuid(),
+  member_id uuid not null references public.member_accounts (id) on delete cascade,
+  year text,
+  make text not null,
+  model text not null,
+  size text not null,
+  notes text,
+  is_default boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists member_vehicles_member_id_idx on public.member_vehicles (member_id);
+create index if not exists member_vehicles_default_idx on public.member_vehicles (member_id, is_default);
+
+create table if not exists public.member_locations (
+  id uuid primary key default gen_random_uuid(),
+  member_id uuid not null references public.member_accounts (id) on delete cascade,
+  label text,
+  address text not null,
+  notes text,
+  is_default boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists member_locations_member_id_idx on public.member_locations (member_id);
+create index if not exists member_locations_default_idx on public.member_locations (member_id, is_default);
+
+create table if not exists public.member_sessions (
+  id uuid primary key default gen_random_uuid(),
+  member_id uuid not null references public.member_accounts (id) on delete cascade,
+  token_hash text not null unique,
+  user_agent text,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now()
+);
+
+create index if not exists member_sessions_member_id_idx on public.member_sessions (member_id);
+create index if not exists member_sessions_expires_at_idx on public.member_sessions (expires_at);
+
+create or replace view public.legendary_member_schema_constraints as
+select table_name
+from information_schema.tables
+where table_schema = 'public'
+  and table_name in ('member_accounts', 'member_vehicles', 'member_locations', 'member_sessions');
+
 create or replace view public.legendary_schema_constraints as
 select con.conname
 from pg_constraint con
@@ -172,6 +236,10 @@ alter table public.service_locations enable row level security;
 alter table public.jobs enable row level security;
 alter table public.booking_events enable row level security;
 alter table public.admin_users enable row level security;
+alter table public.member_accounts enable row level security;
+alter table public.member_vehicles enable row level security;
+alter table public.member_locations enable row level security;
+alter table public.member_sessions enable row level security;
 
 drop policy if exists "No direct anonymous booking access" on public.bookings;
 create policy "No direct anonymous booking access"
@@ -218,6 +286,34 @@ with check (false);
 drop policy if exists "No direct anonymous admin user access" on public.admin_users;
 create policy "No direct anonymous admin user access"
 on public.admin_users
+for all
+using (false)
+with check (false);
+
+drop policy if exists "No direct anonymous member account access" on public.member_accounts;
+create policy "No direct anonymous member account access"
+on public.member_accounts
+for all
+using (false)
+with check (false);
+
+drop policy if exists "No direct anonymous member vehicle access" on public.member_vehicles;
+create policy "No direct anonymous member vehicle access"
+on public.member_vehicles
+for all
+using (false)
+with check (false);
+
+drop policy if exists "No direct anonymous member location access" on public.member_locations;
+create policy "No direct anonymous member location access"
+on public.member_locations
+for all
+using (false)
+with check (false);
+
+drop policy if exists "No direct anonymous member session access" on public.member_sessions;
+create policy "No direct anonymous member session access"
+on public.member_sessions
 for all
 using (false)
 with check (false);

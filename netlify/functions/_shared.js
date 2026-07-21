@@ -464,6 +464,21 @@ function signAdminToken(payload) {
   return `${encoded}.${signature}`;
 }
 
+function signMemberToken(member) {
+  const secret = process.env.ADMIN_SESSION_SECRET;
+  if (!secret) throw new Error("ADMIN_SESSION_SECRET is not configured.");
+  const payload = {
+    kind: "member",
+    id: member.id,
+    phone: member.phone,
+    name: member.name,
+    exp: Date.now() + 1000 * 60 * 60 * 24 * 30
+  };
+  const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = crypto.createHmac("sha256", secret).update(encoded).digest("base64url");
+  return `${encoded}.${signature}`;
+}
+
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString("base64url");
   const iterations = 210000;
@@ -529,6 +544,56 @@ function verifyAdminToken(event) {
   return payload;
 }
 
+function verifyMemberToken(event) {
+  const auth = event.headers.authorization || event.headers.Authorization || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  if (!token || !process.env.ADMIN_SESSION_SECRET) return null;
+
+  const [encoded, signature] = token.split(".");
+  if (!encoded || !signature) return null;
+
+  const expected = crypto
+    .createHmac("sha256", process.env.ADMIN_SESSION_SECRET)
+    .update(encoded)
+    .digest("base64url");
+
+  if (signature.length !== expected.length) return null;
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
+
+  let payload = null;
+  try {
+    payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
+  } catch {
+    return null;
+  }
+  if (payload.kind !== "member" || !payload.id || !payload.phone || !payload.exp || payload.exp < Date.now()) return null;
+  return payload;
+}
+
+async function requireActiveMember(event) {
+  const tokenMember = verifyMemberToken(event);
+  if (!tokenMember) {
+    return { errorResponse: response(401, { error: "Member sign-in required" }) };
+  }
+
+  try {
+    const rows = await supabaseFetch(
+      `member_accounts?select=id,name,phone,email,active,created_at,updated_at&id=eq.${encodeURIComponent(tokenMember.id)}&limit=1`,
+      { method: "GET" }
+    );
+    const member = rows?.[0] || null;
+    if (!member || !member.active) {
+      return { errorResponse: response(401, { error: "Member account is inactive. Sign in again." }) };
+    }
+    return { member };
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      return { errorResponse: response(503, { error: "Member schema is not installed yet." }) };
+    }
+    return { errorResponse: response(500, { error: error.message }) };
+  }
+}
+
 async function requireActiveAdmin(event, allowedRoles = ["admin", "manager", "viewer"]) {
   const tokenAdmin = verifyAdminToken(event);
   if (!tokenAdmin) {
@@ -590,6 +655,9 @@ module.exports = {
   logBookingEvent,
   signAdminToken,
   verifyAdminToken,
+  signMemberToken,
+  verifyMemberToken,
+  requireActiveMember,
   requireActiveAdmin,
   hashPassword,
   verifyPassword,

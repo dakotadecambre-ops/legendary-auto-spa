@@ -1,5 +1,6 @@
-const MEMBER_ACCOUNTS_KEY = "legendary-auto-spa.memberAccounts";
 const MEMBER_SESSION_KEY = "legendary-auto-spa.memberSession";
+const MEMBER_TOKEN_KEY = "legendary-auto-spa.memberToken";
+const MEMBER_PROFILE_KEY = "legendary-auto-spa.memberProfile";
 
 const memberProfileForm = document.querySelector("#memberProfileForm");
 const settingsTitle = document.querySelector("#settingsTitle");
@@ -9,37 +10,64 @@ const settingsStatus = document.querySelector("#settingsStatus");
 const addSettingsVehicleButton = document.querySelector("#addSettingsVehicleButton");
 const addSettingsLocationButton = document.querySelector("#addSettingsLocationButton");
 
+let currentMember = null;
 let draftVehicles = [];
 let draftLocations = [];
 
-function activePhone() {
-  return localStorage.getItem(MEMBER_SESSION_KEY) || "";
+function memberToken() {
+  return localStorage.getItem(MEMBER_TOKEN_KEY) || "";
 }
 
-function readAccounts() {
+function cachedProfile() {
   try {
-    return JSON.parse(localStorage.getItem(MEMBER_ACCOUNTS_KEY)) || {};
+    return JSON.parse(localStorage.getItem(MEMBER_PROFILE_KEY)) || null;
   } catch {
-    return {};
+    return null;
   }
 }
 
-function saveAccounts(accounts) {
-  localStorage.setItem(MEMBER_ACCOUNTS_KEY, JSON.stringify(accounts));
+async function memberApi(path, options = {}) {
+  const result = await fetch(`/.netlify/functions/${path}`, {
+    ...options,
+    headers: {
+      "content-type": "application/json",
+      authorization: memberToken() ? `Bearer ${memberToken()}` : "",
+      ...(options.headers || {})
+    }
+  });
+  const data = await result.json().catch(() => ({}));
+  if (!result.ok) throw new Error(data.error || "Request failed");
+  return data;
 }
 
-function activeAccount() {
-  const phone = activePhone();
-  return phone ? readAccounts()[phone] || null : null;
-}
-
-function renderSettings() {
-  const account = activeAccount();
-  if (!account) {
+async function loadSettings() {
+  if (!memberToken()) {
     window.location.href = "member.html";
     return;
   }
 
+  currentMember = cachedProfile();
+  if (currentMember) hydrateSettings(currentMember);
+
+  try {
+    const data = await memberApi("member-profile");
+    currentMember = data.member;
+    localStorage.setItem(MEMBER_PROFILE_KEY, JSON.stringify(currentMember || {}));
+    localStorage.setItem(MEMBER_SESSION_KEY, currentMember?.phone || "");
+    hydrateSettings(currentMember);
+  } catch (error) {
+    if (!currentMember) {
+      settingsStatus.textContent = error.message;
+      window.setTimeout(() => {
+        window.location.href = "member.html";
+      }, 1200);
+      return;
+    }
+    settingsStatus.textContent = "Showing saved settings. Live member sync needs the backend deploy to finish.";
+  }
+}
+
+function hydrateSettings(account) {
   memberProfileForm.elements.name.value = account.name || "";
   settingsTitle.textContent = account.name ? `${account.name}'s settings` : "Member settings";
   draftVehicles = [...(account.vehicles || [])];
@@ -85,22 +113,28 @@ function renderLocations() {
   `).join("") : '<p class="empty-state">No saved locations yet.</p>';
 }
 
-function saveSettings(event) {
+async function saveSettings(event) {
   event.preventDefault();
-  const phone = activePhone();
-  const accounts = readAccounts();
-  const account = accounts[phone];
-  if (!account) return;
+  if (!currentMember) return;
 
-  accounts[phone] = {
-    ...account,
-    name: memberProfileForm.elements.name.value.trim(),
-    vehicles: draftVehicles,
-    locations: draftLocations,
-    updatedAt: new Date().toISOString()
-  };
-  saveAccounts(accounts);
-  settingsStatus.textContent = "Settings saved.";
+  settingsStatus.textContent = "Saving settings...";
+  try {
+    const data = await memberApi("member-profile", {
+      method: "PATCH",
+      body: JSON.stringify({
+        name: memberProfileForm.elements.name.value.trim(),
+        email: currentMember.email || "",
+        vehicles: draftVehicles,
+        locations: draftLocations
+      })
+    });
+    currentMember = data.member;
+    localStorage.setItem(MEMBER_PROFILE_KEY, JSON.stringify(currentMember || {}));
+    settingsStatus.textContent = "Settings saved.";
+    hydrateSettings(currentMember);
+  } catch (error) {
+    settingsStatus.textContent = error.message;
+  }
 }
 
 function escapeHtml(value) {
@@ -116,12 +150,12 @@ function escapeAttribute(value) {
 }
 
 addSettingsVehicleButton.addEventListener("click", () => {
-  draftVehicles.push({ year: "", make: "", model: "", size: "Car / Sedan / Coupe", tier: "", savedAt: new Date().toISOString() });
+  draftVehicles.push({ year: "", make: "", model: "", size: "Car / Sedan / Coupe", tier: "" });
   renderVehicles();
 });
 
 addSettingsLocationButton.addEventListener("click", () => {
-  draftLocations.push({ label: "New location", address: "", savedAt: new Date().toISOString() });
+  draftLocations.push({ label: "New location", address: "" });
   renderLocations();
 });
 
@@ -158,4 +192,4 @@ settingsLocations.addEventListener("click", (event) => {
 });
 
 memberProfileForm.addEventListener("submit", saveSettings);
-renderSettings();
+loadSettings();

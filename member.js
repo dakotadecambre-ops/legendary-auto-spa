@@ -1,5 +1,6 @@
-const MEMBER_ACCOUNTS_KEY = "legendary-auto-spa.memberAccounts";
 const MEMBER_SESSION_KEY = "legendary-auto-spa.memberSession";
+const MEMBER_TOKEN_KEY = "legendary-auto-spa.memberToken";
+const MEMBER_PROFILE_KEY = "legendary-auto-spa.memberProfile";
 const REQUESTS_KEY = "legendary-auto-spa.requests";
 const REBOOK_KEY = "legendary-auto-spa.rebookRequest";
 
@@ -18,23 +19,30 @@ const memberVehiclesPanel = document.querySelector("#memberVehiclesPanel");
 const memberRequestsPanel = document.querySelector("#memberRequestsPanel");
 const memberTabs = [...document.querySelectorAll("[data-member-tab]")];
 
+let currentMember = null;
+let currentRequests = [];
+
 function normalizePhone(value) {
   return String(value || "").replace(/\D/g, "");
 }
 
-function readAccounts() {
+function memberToken() {
+  return localStorage.getItem(MEMBER_TOKEN_KEY) || "";
+}
+
+function activePhone() {
+  return localStorage.getItem(MEMBER_SESSION_KEY) || "";
+}
+
+function cachedProfile() {
   try {
-    return JSON.parse(localStorage.getItem(MEMBER_ACCOUNTS_KEY)) || {};
+    return JSON.parse(localStorage.getItem(MEMBER_PROFILE_KEY)) || null;
   } catch {
-    return {};
+    return null;
   }
 }
 
-function saveAccounts(accounts) {
-  localStorage.setItem(MEMBER_ACCOUNTS_KEY, JSON.stringify(accounts));
-}
-
-function readRequests() {
+function readLocalRequests() {
   try {
     return JSON.parse(localStorage.getItem(REQUESTS_KEY)) || [];
   } catch {
@@ -42,57 +50,97 @@ function readRequests() {
   }
 }
 
-function activePhone() {
-  return localStorage.getItem(MEMBER_SESSION_KEY) || "";
+async function memberApi(path, options = {}) {
+  const result = await fetch(`/.netlify/functions/${path}`, {
+    ...options,
+    headers: {
+      "content-type": "application/json",
+      authorization: memberToken() ? `Bearer ${memberToken()}` : "",
+      ...(options.headers || {})
+    }
+  });
+  const data = await result.json().catch(() => ({}));
+  if (!result.ok) throw new Error(data.error || "Request failed");
+  return data;
 }
 
-function activeAccount() {
-  const phone = activePhone();
-  return phone ? readAccounts()[phone] || null : null;
+function saveMemberSession(data) {
+  currentMember = data.member;
+  currentRequests = data.requests || [];
+  localStorage.setItem(MEMBER_TOKEN_KEY, data.token || memberToken());
+  localStorage.setItem(MEMBER_SESSION_KEY, data.member?.phone || "");
+  localStorage.setItem(MEMBER_PROFILE_KEY, JSON.stringify(data.member || {}));
 }
 
-function setSignedIn(phone) {
-  localStorage.setItem(MEMBER_SESSION_KEY, phone);
-  renderMemberDashboard();
+function clearMemberSession() {
+  localStorage.removeItem(MEMBER_TOKEN_KEY);
+  localStorage.removeItem(MEMBER_SESSION_KEY);
+  localStorage.removeItem(MEMBER_PROFILE_KEY);
+  currentMember = null;
+  currentRequests = [];
+}
+
+async function setSignedIn(data) {
+  saveMemberSession(data);
+  await loadPortal();
   window.history.replaceState(null, "", "member.html#portal");
   memberDashboard.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function createAccount() {
-  const phone = normalizePhone(memberPhone.value);
-  const password = memberPassword.value;
-  if (phone.length < 10 || password.length < 6) {
-    memberStatus.textContent = "Enter a valid phone number and a password with at least 6 characters.";
-    return;
-  }
-  const accounts = readAccounts();
-  if (accounts[phone] && accounts[phone].password !== password) {
-    memberStatus.textContent = "That phone already has an account. Sign in with the existing password.";
-    return;
-  }
-  if (!accounts[phone]) {
-    accounts[phone] = { phone, password, vehicles: [], createdAt: new Date().toISOString() };
-    saveAccounts(accounts);
-  }
-  setSignedIn(phone);
-}
-
-function signIn(event) {
+async function signIn(event) {
   event.preventDefault();
   const phone = normalizePhone(memberPhone.value);
-  const account = readAccounts()[phone];
-  if (!account || account.password !== memberPassword.value) {
-    memberStatus.textContent = "No matching member account found. Create an account first or check the password.";
+  if (phone.length < 10 || memberPassword.value.length < 6) {
+    memberStatus.textContent = "Enter a valid phone number and password.";
     return;
   }
-  setSignedIn(phone);
+
+  memberStatus.textContent = "Signing in...";
+  try {
+    const data = await memberApi("member-login", {
+      method: "POST",
+      body: JSON.stringify({ phone, password: memberPassword.value })
+    });
+    memberPassword.value = "";
+    memberStatus.textContent = "";
+    await setSignedIn(data);
+  } catch (error) {
+    memberStatus.textContent = error.message;
+  }
+}
+
+async function loadPortal() {
+  if (!memberToken()) {
+    currentMember = null;
+    renderMemberDashboard();
+    return;
+  }
+
+  currentMember = currentMember || cachedProfile();
+  renderMemberDashboard();
+  try {
+    const data = await memberApi("member-profile");
+    currentMember = data.member;
+    currentRequests = data.requests || [];
+    localStorage.setItem(MEMBER_PROFILE_KEY, JSON.stringify(currentMember || {}));
+    localStorage.setItem(MEMBER_SESSION_KEY, currentMember?.phone || activePhone());
+    renderMemberDashboard();
+  } catch (error) {
+    if (currentMember) {
+      memberStatus.textContent = "Showing saved portal data. Live member sync needs the backend deploy to finish.";
+      return;
+    }
+    clearMemberSession();
+    memberStatus.textContent = error.message;
+    renderMemberDashboard();
+  }
 }
 
 function renderMemberDashboard() {
-  const account = activeAccount();
-  memberAuthPanel.classList.toggle("hidden", Boolean(account));
-  memberDashboard.classList.toggle("hidden", !account);
-  if (!account) return;
+  const account = currentMember || cachedProfile();
+  memberAuthPanel.classList.toggle("hidden", Boolean(account && memberToken()));
+  memberDashboard.classList.toggle("hidden", !(account && memberToken()));
+  if (!(account && memberToken())) return;
 
   memberTitle.textContent = account.name ? `${account.name}'s portal` : `Member ${formatPhone(account.phone)}`;
   renderVehicles(account.vehicles || []);
@@ -102,7 +150,7 @@ function renderMemberDashboard() {
 
 function renderVehicles(vehicles) {
   if (!vehicles.length) {
-    memberVehicles.innerHTML = '<p class="empty-state">No saved vehicles yet. Book a wash and choose “Save this vehicle” to add one.</p>';
+    memberVehicles.innerHTML = '<p class="empty-state">No saved vehicles yet. Add one in Settings or save one while booking.</p>';
     return;
   }
 
@@ -131,9 +179,11 @@ function renderLocations(locations) {
 
 function renderRequests() {
   const phone = activePhone();
-  const requests = readRequests().filter((request) => normalizePhone(request.phone) === phone);
+  const backendRequests = currentRequests.map(normalizeBackendRequest);
+  const localRequests = readLocalRequests().filter((request) => normalizePhone(request.phone) === phone);
+  const requests = [...backendRequests, ...localRequests].slice(0, 25);
   if (!requests.length) {
-    memberRequests.innerHTML = '<p class="empty-state">No recent requests found for this phone on this device.</p>';
+    memberRequests.innerHTML = '<p class="empty-state">No recent requests found for this phone yet.</p>';
     return;
   }
 
@@ -147,8 +197,33 @@ function renderRequests() {
   `).join("");
 }
 
+function normalizeBackendRequest(request) {
+  return {
+    name: request.customer_name || currentMember?.name || "",
+    phone: request.phone || currentMember?.phone || "",
+    email: request.email || currentMember?.email || "",
+    year: request.vehicle_year || "",
+    make: request.vehicle_make || "",
+    model: request.vehicle_model || "",
+    size: request.vehicle_size || "",
+    tier: request.service_tier || "",
+    startingPrice: request.starting_price || "",
+    focusArea: request.focus_area || "",
+    focusGoal: request.focus_goal || "",
+    addOns: request.add_ons || "",
+    address: request.service_address || "",
+    date: request.preferred_date || "",
+    time: request.preferred_time || "",
+    notes: request.notes || "",
+    paymentPreference: request.payment_preference || "",
+    paymentStatus: request.payment_status || "",
+    bookingReference: request.id ? request.id.slice(0, 8).toUpperCase() : "",
+    createdAt: request.created_at || new Date().toISOString()
+  };
+}
+
 function setActiveTab(tabName) {
-  memberTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.memberTab === tabName));
+  memberTabs.forEach((tabButton) => tabButton.classList.toggle("active", tabButton.dataset.memberTab === tabName));
   memberVehiclesPanel.classList.toggle("hidden", tabName !== "vehicles");
   memberRequestsPanel.classList.toggle("hidden", tabName !== "requests");
 }
@@ -183,13 +258,13 @@ function escapeAttribute(value) {
 
 memberAuthForm.addEventListener("submit", signIn);
 memberLogoutButton.addEventListener("click", () => {
-  localStorage.removeItem(MEMBER_SESSION_KEY);
+  clearMemberSession();
   window.history.replaceState(null, "", "member.html");
   renderMemberDashboard();
 });
 
-memberTabs.forEach((tab) => {
-  tab.addEventListener("click", () => setActiveTab(tab.dataset.memberTab));
+memberTabs.forEach((tabButton) => {
+  tabButton.addEventListener("click", () => setActiveTab(tabButton.dataset.memberTab));
 });
 
 memberDashboard.addEventListener("click", (event) => {
@@ -199,7 +274,7 @@ memberDashboard.addEventListener("click", (event) => {
     const vehicle = JSON.parse(vehicleButton.dataset.rebookVehicle);
     startVehicleRequest({
       phone: activePhone(),
-      name: activeAccount()?.name || "",
+      name: currentMember?.name || "",
       year: vehicle.year,
       make: vehicle.make,
       model: vehicle.model,
@@ -212,4 +287,4 @@ memberDashboard.addEventListener("click", (event) => {
   }
 });
 
-renderMemberDashboard();
+loadPortal();

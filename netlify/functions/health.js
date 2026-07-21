@@ -168,6 +168,22 @@ async function checkRequiredSchema() {
     {
       table: "admin_users",
       columns: ["id", "email", "role", "password_hash", "active", "created_at", "updated_at"]
+    },
+    {
+      table: "member_accounts",
+      columns: ["id", "name", "phone", "email", "password_hash", "active", "created_at", "updated_at"]
+    },
+    {
+      table: "member_vehicles",
+      columns: ["id", "member_id", "year", "make", "model", "size", "notes", "is_default", "created_at", "updated_at"]
+    },
+    {
+      table: "member_locations",
+      columns: ["id", "member_id", "label", "address", "notes", "is_default", "created_at", "updated_at"]
+    },
+    {
+      table: "member_sessions",
+      columns: ["id", "member_id", "token_hash", "user_agent", "expires_at", "created_at", "last_seen_at"]
     }
   ];
 
@@ -184,6 +200,6 @@ async function checkRequiredSchema() {
 
   return {
     ok: true,
-    detail: "Required bookings, customers, vehicles, locations, jobs, activity, and admin user columns are reachable."
+    detail: "Required booking, admin, and member account columns are reachable."
   };
 }

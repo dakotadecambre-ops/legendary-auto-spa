@@ -3,6 +3,8 @@ const BUSINESS_PHONE_DISPLAY = "201-665-2625";
 const REQUESTS_KEY = "legendary-auto-spa.requests";
 const MEMBER_ACCOUNTS_KEY = "legendary-auto-spa.memberAccounts";
 const MEMBER_SESSION_KEY = "legendary-auto-spa.memberSession";
+const MEMBER_TOKEN_KEY = "legendary-auto-spa.memberToken";
+const MEMBER_PROFILE_KEY = "legendary-auto-spa.memberProfile";
 const REBOOK_KEY = "legendary-auto-spa.rebookRequest";
 
 const form = document.querySelector("#requestForm");
@@ -382,6 +384,10 @@ function activeMemberPhone() {
 }
 
 function activeMember() {
+  try {
+    const profile = JSON.parse(localStorage.getItem(MEMBER_PROFILE_KEY)) || null;
+    if (profile?.phone) return profile;
+  } catch {}
   const phone = activeMemberPhone();
   return phone ? readMemberAccounts()[phone] || null : null;
 }
@@ -392,7 +398,22 @@ function saveMemberAccount(phone, account) {
   localStorage.setItem(MEMBER_ACCOUNTS_KEY, JSON.stringify(accounts));
 }
 
-function saveVehicleToMember(request) {
+async function memberApi(path, options = {}) {
+  const token = localStorage.getItem(MEMBER_TOKEN_KEY) || "";
+  const result = await fetch(`/.netlify/functions/${path}`, {
+    ...options,
+    headers: {
+      "content-type": "application/json",
+      authorization: token ? `Bearer ${token}` : "",
+      ...(options.headers || {})
+    }
+  });
+  const data = await result.json().catch(() => ({}));
+  if (!result.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+async function saveVehicleToMember(request) {
   const phone = activeMemberPhone();
   if (!phone || !saveVehicleCheckbox?.checked) return;
   const account = activeMember();
@@ -409,7 +430,25 @@ function saveVehicleToMember(request) {
   const vehicles = (account.vehicles || []).filter((item) => (
     [item.year, item.make, item.model, item.size].join("|").toLowerCase() !== key
   ));
-  saveMemberAccount(phone, { ...account, vehicles: [vehicle, ...vehicles].slice(0, 12) });
+  const updated = { ...account, vehicles: [vehicle, ...vehicles].slice(0, 12) };
+  saveMemberAccount(phone, updated);
+  localStorage.setItem(MEMBER_PROFILE_KEY, JSON.stringify(updated));
+
+  if (!localStorage.getItem(MEMBER_TOKEN_KEY)) return;
+  try {
+    const data = await memberApi("member-profile", {
+      method: "PATCH",
+      body: JSON.stringify({
+        name: updated.name || "",
+        email: updated.email || "",
+        vehicles: updated.vehicles || [],
+        locations: updated.locations || []
+      })
+    });
+    if (data.member) localStorage.setItem(MEMBER_PROFILE_KEY, JSON.stringify(data.member));
+  } catch {
+    setRequestStatus("Request saved. Vehicle will sync to your member account after backend deploy finishes.");
+  }
 }
 
 function renderMemberHeader() {
@@ -434,6 +473,8 @@ function renderMemberHeader() {
   `;
   document.querySelector("#memberHeaderLogout")?.addEventListener("click", () => {
     localStorage.removeItem(MEMBER_SESSION_KEY);
+    localStorage.removeItem(MEMBER_TOKEN_KEY);
+    localStorage.removeItem(MEMBER_PROFILE_KEY);
     window.location.href = "member.html";
   });
 }
