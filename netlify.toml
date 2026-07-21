@@ -30,6 +30,11 @@
   to = "/confirmation.html"
   status = 200
 
+[[redirects]]
+  from = "/rebook-confirm"
+  to = "/rebook-confirm.html"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]
@@ -79,5 +84,10 @@
 
 [[headers]]
   for = "/confirmation.html"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/rebook-confirm.html"
   [headers.values]
     Cache-Control = "no-store"

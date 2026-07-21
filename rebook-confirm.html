@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#080808">
+    <title>Confirm Request | Legendary Auto Spa</title>
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="app-header" aria-label="Legendary Auto Spa re-request confirmation">
+      <div class="brand-lockup">
+        <img class="brand-mark-image" src="assets/icon.svg" alt="" aria-hidden="true">
+        <div>
+          <p class="eyebrow">Member Request</p>
+          <h1>Confirm Re-request</h1>
+        </div>
+      </div>
+      <a class="member-link" href="member.html">Member portal</a>
+    </header>
+
+    <main class="member-main">
+      <section class="admin-panel">
+        <div class="step-header">
+          <p class="eyebrow">Review</p>
+          <h2>Confirm this wash request</h2>
+        </div>
+        <div id="rebookSummary" class="receipt-grid">
+          <p class="empty-state">Loading request...</p>
+        </div>
+        <div class="wizard-controls">
+          <button class="secondary-button" id="editRequestButton" type="button">Edit first</button>
+          <button class="primary-button" id="confirmRebookButton" type="button">Confirm request</button>
+        </div>
+        <p class="form-status" id="rebookStatus" role="status"></p>
+      </section>
+    </main>
+
+    <script src="rebook-confirm.js"></script>
+  </body>
+</html>

@@ -54,6 +54,8 @@ function activeAccount() {
 function setSignedIn(phone) {
   localStorage.setItem(MEMBER_SESSION_KEY, phone);
   renderMemberDashboard();
+  window.history.replaceState(null, "", "member.html#portal");
+  memberDashboard.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function createAccount() {
@@ -138,6 +140,11 @@ function setActiveTab(tabName) {
 
 function rebook(request) {
   sessionStorage.setItem(REBOOK_KEY, JSON.stringify(request));
+  window.location.href = "rebook-confirm.html";
+}
+
+function startVehicleRequest(request) {
+  sessionStorage.setItem(REBOOK_KEY, JSON.stringify(request));
   window.location.href = "index.html?rebook=1#booking";
 }
 
@@ -175,7 +182,7 @@ memberDashboard.addEventListener("click", (event) => {
   const requestButton = event.target.closest("[data-rebook-request]");
   if (vehicleButton) {
     const vehicle = JSON.parse(vehicleButton.dataset.rebookVehicle);
-    rebook({
+    startVehicleRequest({
       phone: activePhone(),
       year: vehicle.year,
       make: vehicle.make,
