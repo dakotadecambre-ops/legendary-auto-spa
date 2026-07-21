@@ -905,6 +905,12 @@ textarea:focus {
   }
 }
 
+@media (max-width: 719px) {
+  .hero-brand {
+    display: none;
+  }
+}
+
 @media (min-width: 720px) {
   main {
     padding-left: 24px;
