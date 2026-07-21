@@ -36,6 +36,7 @@ const stripePanel = document.querySelector("#stripePanel");
 const paymentElementContainer = document.querySelector("#paymentElement");
 const authorizePaymentButton = document.querySelector("#authorizePaymentButton");
 const requestList = document.querySelector("#requestList");
+const historyCount = document.querySelector("#historyCount");
 const installButton = document.querySelector("#installButton");
 
 let deferredInstallPrompt = null;
@@ -254,22 +255,57 @@ function saveRequest(request) {
 
 function renderRequests() {
   const requests = readRequests();
+  if (historyCount) historyCount.textContent = String(requests.length);
   if (!requests.length) {
     requestList.innerHTML = '<p class="empty-state">No saved requests yet.</p>';
     return;
   }
 
-  requestList.innerHTML = requests.map((request) => {
+  requestList.innerHTML = requests.map((request, index) => {
     const date = formatDisplayDate(request.createdAt);
     const vehicle = [request.make || "Vehicle", request.model || ""].filter(Boolean).join(" ");
+    const receipt = receiptSummary(request);
     return `
-      <article class="request-item">
-        <strong>${escapeHtml(request.tier || "Detail request")} - ${escapeHtml(vehicle)}</strong>
-        <p>${escapeHtml(request.name || "Customer")} · ${escapeHtml(request.phone || "No phone")} · ${escapeHtml(date)}</p>
-        <p>${escapeHtml(request.focusArea || "No focus selected")} · ${escapeHtml(request.address || "No address added")}</p>
-      </article>
+      <details class="request-item" ${index === 0 ? "open" : ""}>
+        <summary>
+          <span>
+            <strong>${escapeHtml(request.tier || "Detail request")} - ${escapeHtml(vehicle)}</strong>
+            <p>${escapeHtml(request.name || "Customer")} · ${escapeHtml(request.phone || "No phone")} · ${escapeHtml(date)}</p>
+          </span>
+          <b>${escapeHtml(receipt.totalLabel)}</b>
+        </summary>
+        <div class="receipt-grid">
+          <div><span>Receipt</span><strong>${escapeHtml(request.bookingReference ? `#${request.bookingReference}` : "Saved on this device")}</strong></div>
+          <div><span>Package</span><strong>${escapeHtml(request.tier || "Detail request")}</strong><p>${escapeHtml(receipt.packageLabel)}</p></div>
+          <div><span>Add-ons</span><strong>${escapeHtml(request.addOns || "None")}</strong><p>${escapeHtml(receipt.addOnsLabel)}</p></div>
+          <div><span>Total</span><strong>${escapeHtml(receipt.totalLabel)}</strong><p>Package plus selected add-ons</p></div>
+          <div><span>Payment</span><strong>${escapeHtml(request.paymentPreference || "Request now")}</strong><p>${escapeHtml(request.paymentStatus || "Pending review")}</p></div>
+          <div><span>Schedule</span><strong>${escapeHtml(request.date || "No date")}</strong><p>${escapeHtml(request.time || "No time")}</p></div>
+          <div><span>Location</span><strong>${escapeHtml(request.address || "No address added")}</strong><p>${escapeHtml(request.notes || "")}</p></div>
+          <div><span>Focus</span><strong>${escapeHtml(request.focusArea || "No focus selected")}</strong><p>${escapeHtml(request.focusGoal || "")}</p></div>
+        </div>
+      </details>
     `;
   }).join("");
+}
+
+function receiptSummary(request) {
+  const savedTotal = moneyValue(request.startingPrice);
+  const addOns = addOnTotal(request.addOns);
+  const includesTotalBreakdown = /total/i.test(String(request.startingPrice || ""));
+  const packageOnly = includesTotalBreakdown ? Math.max(savedTotal - addOns, 0) || savedTotal : savedTotal;
+  const total = packageOnly + addOns;
+  return {
+    packageLabel: packageOnly ? `$${packageOnly}` : request.startingPrice || "Not set",
+    addOnsLabel: addOns ? `$${addOns} add-ons` : "No add-ons selected",
+    totalLabel: total ? `$${total}` : request.startingPrice || "Not set"
+  };
+}
+
+function addOnTotal(addOns) {
+  return String(addOns || "")
+    .split(",")
+    .reduce((sum, item) => sum + moneyValue(item), 0);
 }
 
 function formatDisplayDate(value) {
@@ -312,6 +348,23 @@ function setRequestStatus(message) {
 function bookingReference(result) {
   const id = result?.booking?.id;
   return id ? ` Reference: ${String(id).split("-")[0].toUpperCase()}.` : "";
+}
+
+function updateSavedRequestReference(createdAt, result) {
+  const id = result?.booking?.id;
+  if (!id || !createdAt) return;
+  const requests = readRequests();
+  const nextRequests = requests.map((request) => (
+    request.createdAt === createdAt
+      ? {
+          ...request,
+          bookingReference: String(id).split("-")[0].toUpperCase(),
+          paymentStatus: result.payment?.status || request.paymentStatus || "Pending review"
+        }
+      : request
+  ));
+  localStorage.setItem(REQUESTS_KEY, JSON.stringify(nextRequests));
+  renderRequests();
 }
 
 async function sendBookingToBackend(request) {
@@ -449,6 +502,7 @@ async function submitRequest() {
   try {
     const result = await sendBookingToBackend(request);
     const reference = bookingReference(result);
+    updateSavedRequestReference(request.createdAt, result);
     if (result.payment?.client_secret) {
       try {
         await mountStripePayment(result.payment.client_secret);

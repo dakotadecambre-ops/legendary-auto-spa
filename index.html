@@ -409,13 +409,18 @@
       </section>
 
       <section class="request-log" aria-label="Saved requests">
-        <div class="step-header">
-          <p class="eyebrow">Recent</p>
-          <h2>Saved requests</h2>
-        </div>
-        <div id="requestList" class="request-list">
-          <p class="empty-state">No saved requests yet.</p>
-        </div>
+        <details class="history-menu">
+          <summary>
+            <span>
+              <span class="eyebrow">History</span>
+              <strong>Saved requests and receipts</strong>
+            </span>
+            <span id="historyCount">0</span>
+          </summary>
+          <div id="requestList" class="request-list">
+            <p class="empty-state">No saved requests yet.</p>
+          </div>
+        </details>
       </section>
     </main>
 

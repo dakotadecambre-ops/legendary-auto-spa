@@ -68,6 +68,31 @@
   margin: 16px 0;
 }
 
+.customer-search-panel {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px solid rgba(214, 184, 112, 0.18);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.customer-search-panel label {
+  display: grid;
+  gap: 7px;
+  color: var(--gold);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.customer-search-panel p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
 .panel-heading h3 {
   margin: 0;
   color: white;
@@ -338,6 +363,24 @@
   font-size: 1.35rem;
 }
 
+.customer-history-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: white;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: rgba(244, 217, 140, 0.42);
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.customer-history-button:hover {
+  color: var(--gold-bright);
+  text-decoration-color: var(--gold-bright);
+}
+
 .booking-meta {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -417,6 +460,15 @@
 
   .health-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .customer-search-panel {
+    grid-template-columns: 1fr auto;
+    align-items: end;
+  }
+
+  .customer-search-panel p {
+    grid-column: 1 / -1;
   }
 
   .admin-user-form {

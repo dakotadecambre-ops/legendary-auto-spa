@@ -806,6 +806,54 @@ textarea:focus {
   gap: 10px;
 }
 
+.history-menu {
+  border: 1px solid rgba(214, 184, 112, 0.2);
+  border-radius: 8px;
+  background: rgba(17, 17, 17, 0.9);
+}
+
+.history-menu > summary,
+.request-item > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.history-menu > summary::-webkit-details-marker,
+.request-item > summary::-webkit-details-marker {
+  display: none;
+}
+
+.history-menu > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px;
+}
+
+.history-menu > summary strong {
+  display: block;
+  margin-top: 4px;
+  color: white;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.25rem;
+}
+
+#historyCount {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f4d98c 0%, #c59b3f 100%);
+  color: #090909;
+  font-weight: 900;
+}
+
+.history-menu .request-list {
+  padding: 0 12px 12px;
+}
+
 .request-item {
   padding: 15px;
   border: 1px solid rgba(214, 184, 112, 0.2);
@@ -813,14 +861,50 @@ textarea:focus {
   background: rgba(17, 17, 17, 0.9);
 }
 
+.request-item > summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .request-item strong {
   display: block;
   color: white;
 }
 
+.request-item b {
+  flex: 0 0 auto;
+  color: var(--gold-bright);
+  font-size: 0.96rem;
+}
+
 .request-item p {
   margin: 6px 0 0;
   line-height: 1.4;
+}
+
+.receipt-grid {
+  display: grid;
+  gap: 8px;
+  margin-top: 13px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(214, 184, 112, 0.16);
+}
+
+.receipt-grid div {
+  padding: 10px;
+  border: 1px solid rgba(214, 184, 112, 0.14);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.receipt-grid span {
+  display: block;
+  color: var(--gold);
+  font-size: 0.7rem;
+  font-weight: 850;
+  text-transform: uppercase;
 }
 
 .bottom-bar {
@@ -937,6 +1021,10 @@ textarea:focus {
 
   .hero-brand {
     width: 520px;
+  }
+
+  .receipt-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .tiers {

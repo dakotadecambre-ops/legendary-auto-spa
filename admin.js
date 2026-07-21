@@ -22,6 +22,9 @@ const createTestBookingButton = document.querySelector("#createTestBookingButton
 const sendTestNotificationButton = document.querySelector("#sendTestNotificationButton");
 const refreshBookingsButton = document.querySelector("#refreshBookingsButton");
 const logoutButton = document.querySelector("#logoutButton");
+const customerSearchInput = document.querySelector("#customerSearchInput");
+const clearCustomerSearchButton = document.querySelector("#clearCustomerSearchButton");
+const customerSearchStatus = document.querySelector("#customerSearchStatus");
 
 const statuses = ["new", "contacted", "scheduled", "in_progress", "complete", "canceled"];
 const paymentStatuses = ["not_started", "pending", "requires_capture", "succeeded", "canceled", "failed"];
@@ -33,6 +36,7 @@ const backendSetupLinks = {
   stripeWebhooks: "https://dashboard.stripe.com/webhooks",
   resend: "https://resend.com/api-keys"
 };
+let allBookings = [];
 
 function token() {
   return localStorage.getItem(ADMIN_TOKEN_KEY);
@@ -140,6 +144,13 @@ logoutButton.addEventListener("click", () => {
 createTestBookingButton.addEventListener("click", createTestBooking);
 sendTestNotificationButton.addEventListener("click", sendTestNotification);
 
+customerSearchInput.addEventListener("input", renderFilteredBookings);
+clearCustomerSearchButton.addEventListener("click", () => {
+  customerSearchInput.value = "";
+  renderFilteredBookings();
+  customerSearchInput.focus();
+});
+
 adminUserForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   await saveAdminUser({
@@ -156,10 +167,40 @@ async function loadBookings() {
   adminBookings.innerHTML = '<p class="empty-state">Loading bookings...</p>';
   try {
     const data = await api("admin-bookings");
-    renderBookings(data.bookings || []);
+    allBookings = data.bookings || [];
+    renderFilteredBookings();
   } catch (error) {
     adminBookings.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
   }
+}
+
+function renderFilteredBookings() {
+  const query = String(customerSearchInput?.value || "").trim().toLowerCase();
+  const bookings = query
+    ? allBookings.filter((booking) => bookingMatchesQuery(booking, query))
+    : allBookings;
+
+  if (customerSearchStatus) {
+    customerSearchStatus.textContent = query
+      ? `Showing ${bookings.length} of ${allBookings.length} matching booking${bookings.length === 1 ? "" : "s"}.`
+      : "Showing all booking history.";
+  }
+
+  renderBookings(bookings);
+}
+
+function bookingMatchesQuery(booking, query) {
+  return [
+    booking.customer_name,
+    booking.phone,
+    booking.email,
+    booking.vehicle_year,
+    booking.vehicle_make,
+    booking.vehicle_model,
+    booking.vehicle_size,
+    booking.service_address,
+    booking.service_tier
+  ].some((value) => String(value || "").toLowerCase().includes(query));
 }
 
 async function loadHealth() {
@@ -397,7 +438,7 @@ function renderBookings(bookings) {
     <article class="admin-booking" data-id="${escapeAttribute(booking.id || "")}" data-payment-intent-id="${escapeAttribute(booking.payment_intent_id || "")}">
       <div class="booking-head">
         <div>
-          <h3>${escapeHtml(booking.customer_name || "Customer")}</h3>
+          <h3><button class="customer-history-button" type="button" data-customer-history="${escapeAttribute(customerHistoryQuery(booking))}">${escapeHtml(booking.customer_name || "Customer")}</button></h3>
           <p>${escapeHtml(booking.phone || "")} ${booking.email ? `· ${escapeHtml(booking.email)}` : ""}</p>
         </div>
         <span class="status-pill">${escapeHtml(booking.status || "new")}</span>
@@ -430,6 +471,18 @@ function renderBookings(bookings) {
   adminBookings.querySelectorAll("[data-capture]").forEach((button) => {
     button.addEventListener("click", () => capturePayment(button.closest(".admin-booking")));
   });
+
+  adminBookings.querySelectorAll("[data-customer-history]").forEach((button) => {
+    button.addEventListener("click", () => {
+      customerSearchInput.value = button.dataset.customerHistory || "";
+      renderFilteredBookings();
+      customerSearchInput.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  });
+}
+
+function customerHistoryQuery(booking) {
+  return booking.phone || booking.email || booking.customer_name || "";
 }
 
 function renderBookingControls(booking, canUpdateBookings, canCapturePayment) {

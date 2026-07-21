@@ -66,6 +66,14 @@
         <div class="system-status" id="systemStatus">
           <p class="empty-state">System status will load after login.</p>
         </div>
+        <section class="customer-search-panel" aria-label="Customer history search">
+          <label>
+            Search customer history
+            <input id="customerSearchInput" type="search" autocomplete="off" placeholder="Name, phone, email, vehicle, or address">
+          </label>
+          <button class="secondary-button" id="clearCustomerSearchButton" type="button">Clear search</button>
+          <p id="customerSearchStatus">Showing all booking history.</p>
+        </section>
         <section class="admin-users-panel" id="adminUsersPanel" aria-labelledby="adminUsersTitle">
           <div class="panel-heading">
             <div>
