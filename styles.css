@@ -188,6 +188,60 @@ textarea {
   white-space: nowrap;
 }
 
+.member-menu {
+  position: relative;
+}
+
+.member-dropdown {
+  position: relative;
+}
+
+.member-dropdown > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.member-dropdown > summary::-webkit-details-marker {
+  display: none;
+}
+
+.member-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 8;
+  min-width: 176px;
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid rgba(214, 184, 112, 0.24);
+  border-radius: 8px;
+  background: #101010;
+  box-shadow: var(--shadow);
+}
+
+.member-dropdown-menu a,
+.member-dropdown-menu button {
+  min-height: 38px;
+  display: grid;
+  align-items: center;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--gold-bright);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 850;
+  text-align: left;
+  text-decoration: none;
+}
+
+.member-dropdown-menu a:hover,
+.member-dropdown-menu button:hover {
+  background: rgba(214, 184, 112, 0.12);
+}
+
 main {
   max-width: 940px;
   margin: 0 auto;
@@ -1036,6 +1090,10 @@ textarea:focus {
 .member-tab.active {
   background: linear-gradient(135deg, #f4d98c 0%, #c59b3f 100%);
   color: #090909;
+}
+
+.saved-location-heading {
+  margin-top: 18px;
 }
 
 .bottom-bar {

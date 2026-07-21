@@ -1,13 +1,17 @@
-const CACHE_NAME = "legendary-auto-spa-v16";
+const CACHE_NAME = "legendary-auto-spa-v17";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./member.html",
+  "./create-member.html",
+  "./member-settings.html",
   "./confirmation.html",
   "./rebook-confirm.html",
   "./styles.css",
   "./app.js",
   "./member.js",
+  "./create-member.js",
+  "./member-settings.js",
   "./rebook-confirm.js",
   "./manifest.webmanifest",
   "./assets/icon.svg",

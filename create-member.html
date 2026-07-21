@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#080808">
+    <title>Create Member Account | Legendary Auto Spa</title>
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="app-header" aria-label="Create Legendary Auto Spa member account">
+      <div class="brand-lockup">
+        <img class="brand-mark-image" src="assets/icon.svg" alt="" aria-hidden="true">
+        <div>
+          <p class="eyebrow">Member Account</p>
+          <h1>Create Account</h1>
+        </div>
+      </div>
+      <a class="member-link" href="member.html">Member sign-in</a>
+    </header>
+
+    <main class="member-main">
+      <section class="admin-panel">
+        <div class="step-header">
+          <p class="eyebrow">Profile</p>
+          <h2>Save your details</h2>
+        </div>
+        <form id="createMemberForm" class="request-form">
+          <fieldset>
+            <legend>Account</legend>
+            <label>
+              Full name
+              <input name="name" type="text" autocomplete="name" required placeholder="Full name">
+            </label>
+            <div class="grid-two">
+              <label>
+                Phone number
+                <input name="phone" type="tel" autocomplete="tel" required placeholder="(555) 123-4567">
+              </label>
+              <label>
+                Password
+                <input name="password" type="password" autocomplete="new-password" required placeholder="6+ characters">
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Saved vehicle</legend>
+            <div class="grid-two">
+              <label>
+                Year
+                <input name="year" type="number" inputmode="numeric" min="1950" max="2035" placeholder="2022">
+              </label>
+              <label>
+                Make
+                <input name="make" type="text" placeholder="Toyota">
+              </label>
+            </div>
+            <div class="grid-two">
+              <label>
+                Model
+                <input name="model" type="text" placeholder="Camry">
+              </label>
+              <label>
+                Vehicle class
+                <select name="size">
+                  <option value="Car / Sedan / Coupe">Car / Sedan / Coupe</option>
+                  <option value="SUV / Crossover">SUV / Crossover</option>
+                  <option value="Truck / Large SUV">Truck / Large SUV</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Saved location</legend>
+            <label>
+              Service address
+              <input name="address" type="text" autocomplete="street-address" placeholder="Street, city, state">
+            </label>
+          </fieldset>
+
+          <button class="primary-button full-width" type="submit">Create account</button>
+        </form>
+        <p class="form-status" id="createMemberStatus" role="status"></p>
+      </section>
+    </main>
+
+    <script src="create-member.js"></script>
+  </body>
+</html>

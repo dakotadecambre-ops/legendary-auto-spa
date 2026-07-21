@@ -26,6 +26,16 @@
   status = 200
 
 [[redirects]]
+  from = "/create-member"
+  to = "/create-member.html"
+  status = 200
+
+[[redirects]]
+  from = "/member-settings"
+  to = "/member-settings.html"
+  status = 200
+
+[[redirects]]
   from = "/confirmation"
   to = "/confirmation.html"
   status = 200
@@ -79,6 +89,16 @@
 
 [[headers]]
   for = "/member.html"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/create-member.html"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/member-settings.html"
   [headers.values]
     Cache-Control = "no-store"
 

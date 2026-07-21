@@ -27,6 +27,8 @@ const customerSearchInput = document.querySelector("#customerSearchInput");
 const clearCustomerSearchButton = document.querySelector("#clearCustomerSearchButton");
 const customerSearchStatus = document.querySelector("#customerSearchStatus");
 const scheduleQueue = document.querySelector("#scheduleQueue");
+const membersList = document.querySelector("#membersList");
+const MEMBER_ACCOUNTS_KEY = "legendary-auto-spa.memberAccounts";
 
 const statuses = ["new", "contacted", "scheduled", "in_progress", "complete", "canceled"];
 const paymentStatuses = ["not_started", "pending", "requires_capture", "succeeded", "canceled", "failed"];
@@ -131,6 +133,7 @@ adminLoginForm.addEventListener("submit", async (event) => {
     if (hasAdminRole(["admin"])) await loadAdminUsers();
     await loadActivity();
     await loadBookings();
+    renderMembers();
     startBookingPolling();
   } catch (error) {
     adminStatus.textContent = error.message;
@@ -142,6 +145,7 @@ refreshBookingsButton.addEventListener("click", async () => {
   if (hasAdminRole(["admin"])) await loadAdminUsers();
   await loadActivity();
   await loadBookings();
+  renderMembers();
 });
 
 logoutButton.addEventListener("click", () => {
@@ -280,6 +284,40 @@ function renderScheduleQueue(bookings) {
       </span>
     </article>
   `).join("");
+}
+
+function readMemberAccounts() {
+  try {
+    return JSON.parse(localStorage.getItem(MEMBER_ACCOUNTS_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function renderMembers() {
+  const members = Object.values(readMemberAccounts());
+  if (!members.length) {
+    membersList.innerHTML = '<p class="empty-state">No member accounts saved in this browser yet. Backend member storage is needed to see members from every customer device.</p>';
+    return;
+  }
+
+  membersList.innerHTML = members.map((member) => {
+    const vehicles = (member.vehicles || []).map((vehicle) => [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ")).filter(Boolean);
+    const locations = (member.locations || []).map((location) => location.address).filter(Boolean);
+    return `
+      <article class="activity-item">
+        <div>
+          <strong>${escapeHtml(member.name || "Member")} · ${escapeHtml(formatPhone(member.phone || ""))}</strong>
+          <p>${escapeHtml(vehicles.length ? vehicles.join(" | ") : "No saved vehicles")}</p>
+          <small>${escapeHtml(locations.length ? locations.join(" | ") : "No saved locations")}</small>
+        </div>
+        <span>
+          member
+          <small>${formatDate(member.updatedAt || member.createdAt)}</small>
+        </span>
+      </article>
+    `;
+  }).join("");
 }
 
 async function loadHealth() {
@@ -766,6 +804,12 @@ function formatDate(value) {
   });
 }
 
+function formatPhone(value) {
+  const phone = String(value || "").replace(/\D/g, "");
+  if (phone.length !== 10) return value;
+  return `(${phone.slice(0, 3)}) ${phone.slice(3, 6)}-${phone.slice(6)}`;
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")
@@ -784,6 +828,7 @@ if (token() && sessionIsValid()) {
   if (hasAdminRole(["admin"])) loadAdminUsers();
   loadActivity();
   loadBookings();
+  renderMembers();
   startBookingPolling();
 } else {
   if (token()) {

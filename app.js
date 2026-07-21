@@ -48,6 +48,7 @@ const customerNotificationStatus = document.querySelector("#customerNotification
 const saveVehicleCheckbox = document.querySelector("#saveVehicleCheckbox");
 const recurringCheckbox = document.querySelector("#recurringCheckbox");
 const recurringFrequencyField = document.querySelector("#recurringFrequencyField");
+const memberMenu = document.querySelector("#memberMenu");
 
 let deferredInstallPrompt = null;
 let currentStep = 0;
@@ -409,6 +410,32 @@ function saveVehicleToMember(request) {
     [item.year, item.make, item.model, item.size].join("|").toLowerCase() !== key
   ));
   saveMemberAccount(phone, { ...account, vehicles: [vehicle, ...vehicles].slice(0, 12) });
+}
+
+function renderMemberHeader() {
+  const phone = activeMemberPhone();
+  const account = activeMember();
+  if (!memberMenu) return;
+  if (!phone || !account) {
+    memberMenu.innerHTML = '<a class="member-link" href="member.html">Member sign-in</a>';
+    return;
+  }
+
+  const label = account.name || "Member";
+  memberMenu.innerHTML = `
+    <details class="member-dropdown">
+      <summary class="member-link">${escapeHtml(label)}</summary>
+      <div class="member-dropdown-menu">
+        <a href="member.html#portal">Member portal</a>
+        <a href="member-settings.html">Settings</a>
+        <button type="button" id="memberHeaderLogout">Log out</button>
+      </div>
+    </details>
+  `;
+  document.querySelector("#memberHeaderLogout")?.addEventListener("click", () => {
+    localStorage.removeItem(MEMBER_SESSION_KEY);
+    window.location.href = "member.html";
+  });
 }
 
 function saveRequest(request) {
@@ -888,4 +915,5 @@ updateFocusSelection();
 updatePaymentSelection();
 goToStep(0);
 renderRequests();
+renderMemberHeader();
 applyPendingRebook();

@@ -37,7 +37,7 @@
           </label>
           <div class="wizard-controls">
             <button class="primary-button" type="submit" data-auth-mode="signin">Sign in</button>
-            <button class="secondary-button" type="button" id="createMemberButton">Create account</button>
+            <a class="secondary-button link-button" href="create-member.html">Create account</a>
           </div>
         </form>
         <p class="form-status" id="memberStatus" role="status"></p>
@@ -49,7 +49,11 @@
             <p class="eyebrow">Member Portal</p>
             <h2 id="memberTitle">Member dashboard</h2>
           </div>
-          <button class="secondary-button" id="memberLogoutButton" type="button">Log out</button>
+          <div class="admin-actions">
+            <a class="secondary-button link-button" href="index.html">Booking page</a>
+            <a class="secondary-button link-button" href="member-settings.html">Settings</a>
+            <button class="secondary-button" id="memberLogoutButton" type="button">Log out</button>
+          </div>
         </div>
 
         <div class="member-tabs" role="tablist" aria-label="Member account sections">
@@ -59,6 +63,13 @@
 
         <section class="member-tab-panel" id="memberVehiclesPanel">
           <div id="memberVehicles" class="request-list"></div>
+          <div class="panel-heading saved-location-heading">
+            <div>
+              <p class="eyebrow">Locations</p>
+              <h3>Saved locations</h3>
+            </div>
+          </div>
+          <div id="memberLocations" class="request-list"></div>
         </section>
 
         <section class="member-tab-panel hidden" id="memberRequestsPanel">

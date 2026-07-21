@@ -6,13 +6,13 @@ const REBOOK_KEY = "legendary-auto-spa.rebookRequest";
 const memberAuthPanel = document.querySelector("#memberAuthPanel");
 const memberDashboard = document.querySelector("#memberDashboard");
 const memberAuthForm = document.querySelector("#memberAuthForm");
-const createMemberButton = document.querySelector("#createMemberButton");
 const memberPhone = document.querySelector("#memberPhone");
 const memberPassword = document.querySelector("#memberPassword");
 const memberStatus = document.querySelector("#memberStatus");
 const memberTitle = document.querySelector("#memberTitle");
 const memberLogoutButton = document.querySelector("#memberLogoutButton");
 const memberVehicles = document.querySelector("#memberVehicles");
+const memberLocations = document.querySelector("#memberLocations");
 const memberRequests = document.querySelector("#memberRequests");
 const memberVehiclesPanel = document.querySelector("#memberVehiclesPanel");
 const memberRequestsPanel = document.querySelector("#memberRequestsPanel");
@@ -94,8 +94,9 @@ function renderMemberDashboard() {
   memberDashboard.classList.toggle("hidden", !account);
   if (!account) return;
 
-  memberTitle.textContent = `Member ${formatPhone(account.phone)}`;
+  memberTitle.textContent = account.name ? `${account.name}'s portal` : `Member ${formatPhone(account.phone)}`;
   renderVehicles(account.vehicles || []);
+  renderLocations(account.locations || []);
   renderRequests();
 }
 
@@ -110,6 +111,20 @@ function renderVehicles(vehicles) {
       <strong>${escapeHtml([vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ") || "Saved vehicle")}</strong>
       <p>${escapeHtml(vehicle.size || "Vehicle")} · ${escapeHtml(vehicle.tier || "No package saved")}</p>
       <button class="secondary-button full-width" type="button" data-rebook-vehicle='${escapeAttribute(JSON.stringify(vehicle))}'>Request this vehicle</button>
+    </article>
+  `).join("");
+}
+
+function renderLocations(locations) {
+  if (!locations.length) {
+    memberLocations.innerHTML = '<p class="empty-state">No saved locations yet. Add one in Settings.</p>';
+    return;
+  }
+
+  memberLocations.innerHTML = locations.map((location) => `
+    <article class="request-item">
+      <strong>${escapeHtml(location.label || "Saved location")}</strong>
+      <p>${escapeHtml(location.address || "No address")}</p>
     </article>
   `).join("");
 }
@@ -167,9 +182,9 @@ function escapeAttribute(value) {
 }
 
 memberAuthForm.addEventListener("submit", signIn);
-createMemberButton.addEventListener("click", createAccount);
 memberLogoutButton.addEventListener("click", () => {
   localStorage.removeItem(MEMBER_SESSION_KEY);
+  window.history.replaceState(null, "", "member.html");
   renderMemberDashboard();
 });
 
@@ -184,6 +199,7 @@ memberDashboard.addEventListener("click", (event) => {
     const vehicle = JSON.parse(vehicleButton.dataset.rebookVehicle);
     startVehicleRequest({
       phone: activePhone(),
+      name: activeAccount()?.name || "",
       year: vehicle.year,
       make: vehicle.make,
       model: vehicle.model,

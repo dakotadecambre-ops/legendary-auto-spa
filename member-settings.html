@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#080808">
+    <title>Member Settings | Legendary Auto Spa</title>
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="app-header" aria-label="Legendary Auto Spa member settings">
+      <div class="brand-lockup">
+        <img class="brand-mark-image" src="assets/icon.svg" alt="" aria-hidden="true">
+        <div>
+          <p class="eyebrow">Member Settings</p>
+          <h1>Legendary Auto Spa</h1>
+        </div>
+      </div>
+      <a class="member-link" href="member.html#portal">Member portal</a>
+    </header>
+
+    <main class="member-main">
+      <section class="admin-panel">
+        <div class="step-header">
+          <p class="eyebrow">Profile</p>
+          <h2 id="settingsTitle">Settings</h2>
+        </div>
+        <form id="memberProfileForm" class="request-form">
+          <fieldset>
+            <legend>Account</legend>
+            <label>
+              Name
+              <input name="name" type="text" autocomplete="name">
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Saved vehicles</legend>
+            <div id="settingsVehicles" class="additional-vehicles-list"></div>
+            <button class="secondary-button full-width" id="addSettingsVehicleButton" type="button">Add vehicle</button>
+          </fieldset>
+
+          <fieldset>
+            <legend>Saved locations</legend>
+            <div id="settingsLocations" class="additional-vehicles-list"></div>
+            <button class="secondary-button full-width" id="addSettingsLocationButton" type="button">Add location</button>
+          </fieldset>
+
+          <button class="primary-button full-width" type="submit">Save settings</button>
+        </form>
+        <p class="form-status" id="settingsStatus" role="status"></p>
+      </section>
+    </main>
+
+    <script src="member-settings.js"></script>
+  </body>
+</html>
