@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#080808">
+    <meta name="description" content="Pull Up Dirty... Leave Legendary. Request high end mobile car detailing from Legendary Auto Spa.">
+    <title>Legendary Auto Spa</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="assets/icon.svg">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body class="splash-lock">
+    <div class="splash-screen" id="splashScreen" aria-label="Legendary Auto Spa intro">
+      <img src="assets/legendary-brand.svg" alt="Legendary Auto Spa">
+      <p>Pull Up Dirty... Leave Legendary</p>
+    </div>
+
+    <header class="app-header" aria-label="Legendary Auto Spa booking app">
+      <div class="brand-lockup">
+        <img class="brand-mark-image" src="assets/icon.svg" alt="" aria-hidden="true">
+        <div>
+          <p class="eyebrow">High End Car Detailing</p>
+          <h1>Legendary Auto Spa</h1>
+        </div>
+      </div>
+      <button class="icon-button" id="installButton" type="button" hidden aria-label="Install app">
+        <span class="install-mark" aria-hidden="true">+</span>
+      </button>
+    </header>
+
+    <main>
+      <section class="hero" aria-label="Mobile detailing service">
+        <img src="assets/detail-hero-luxury.png" alt="Glossy black luxury sedan in a premium detailing studio">
+        <div class="hero-copy">
+          <img class="hero-brand" src="assets/legendary-brand.svg" alt="Legendary Auto Spa logo">
+          <p>Pull Up Dirty... Leave Legendary</p>
+          <h2>High end detailing brought to your driveway.</h2>
+          <div class="hero-subcopy">Select your package, add your vehicle and location, and request Legendary Auto Spa in under a minute.</div>
+        </div>
+      </section>
+
+      <section class="booking-shell" id="booking" aria-label="Request a mobile detail">
+        <div class="step-header">
+          <p class="eyebrow">Request Details</p>
+          <h2>Build your detail request</h2>
+        </div>
+
+        <div class="booking-progress" aria-label="Booking progress">
+          <span class="progress-dot active" data-progress="0">1</span>
+          <span class="progress-line"></span>
+          <span class="progress-dot" data-progress="1">2</span>
+          <span class="progress-line"></span>
+          <span class="progress-dot" data-progress="2">3</span>
+          <span class="progress-line"></span>
+          <span class="progress-dot" data-progress="3">4</span>
+        </div>
+
+        <div class="wizard" id="bookingWizard">
+          <section class="booking-step active" data-step="0" aria-label="Choose package">
+            <div class="step-copy">
+              <p class="eyebrow">Step 1</p>
+              <h3>Choose your package</h3>
+            </div>
+
+            <div class="tiers" role="radiogroup" aria-label="Wash tiers">
+              <label class="tier-card selected">
+                <input type="radio" name="tier" value="Signature Wash" data-price-cars="55" data-price-suvs="65" data-price-trucks="75" checked>
+                <span class="tier-top">
+                  <span>
+                    <strong>Signature Wash</strong>
+                    <small>Exterior maintenance</small>
+                  </span>
+                  <b data-tier-price>$55+</b>
+                </span>
+                <span class="price-grid">
+                  <span>Cars <b>$55</b></span>
+                  <span>SUVs <b>$65</b></span>
+                  <span>Trucks <b>$75</b></span>
+                </span>
+                <span class="tier-detail">Hand wash, wheels cleaned, tire shine, exterior windows, and quick vacuum.</span>
+              </label>
+
+              <label class="tier-card">
+                <input type="radio" name="tier" value="Interior Detail" data-price-cars="75" data-price-suvs="95" data-price-trucks="115">
+                <span class="tier-top">
+                  <span>
+                    <strong>Interior Detail</strong>
+                    <small>Cabin refresh</small>
+                  </span>
+                  <b data-tier-price>$75+</b>
+                </span>
+                <span class="price-grid">
+                  <span>Cars <b>$75</b></span>
+                  <span>SUVs <b>$95</b></span>
+                  <span>Trucks <b>$115</b></span>
+                </span>
+                <span class="tier-detail">Full vacuum, dash/console wiped, door panels cleaned, cupholders cleaned, interior windows, trash removal, and air freshener.</span>
+              </label>
+
+              <label class="tier-card">
+                <input type="radio" name="tier" value="Inside & Out Detail" data-price-cars="95" data-price-suvs="115" data-price-trucks="135">
+                <span class="tier-top">
+                  <span>
+                    <strong>Inside & Out Detail</strong>
+                    <small>Most popular</small>
+                  </span>
+                  <b data-tier-price>$95+</b>
+                </span>
+                <span class="price-grid">
+                  <span>Cars <b>$95</b></span>
+                  <span>SUVs <b>$115</b></span>
+                  <span>Trucks <b>$135</b></span>
+                </span>
+                <span class="tier-detail">Everything in Signature Wash plus full interior vacuum, dash/console wipe, interior windows, door jambs, air freshener, and spray wax protection.</span>
+              </label>
+
+              <label class="tier-card">
+                <input type="radio" name="tier" value="Full Reset Detail" data-price-cars="145" data-price-suvs="175" data-price-trucks="205">
+                <span class="tier-top">
+                  <span>
+                    <strong>Full Reset Detail</strong>
+                    <small>Deep reset</small>
+                  </span>
+                  <b data-tier-price>$145+</b>
+                </span>
+                <span class="price-grid">
+                  <span>Cars <b>$145</b></span>
+                  <span>SUVs <b>$175</b></span>
+                  <span>Trucks <b>$205</b></span>
+                </span>
+                <span class="tier-detail">Everything in Inside & Out Detail plus seat/carpet shampoo, light stain treatment, deep interior clean, spray wax protection, premium gloss finish, and extra attention to details.</span>
+              </label>
+
+              <label class="tier-card">
+                <input type="radio" name="tier" value="Executive Showroom Detail" data-price-cars="225" data-price-suvs="265" data-price-trucks="305">
+                <span class="tier-top">
+                  <span>
+                    <strong>Executive Showroom Detail</strong>
+                    <small>Top-tier finish</small>
+                  </span>
+                  <b data-tier-price>$225+</b>
+                </span>
+                <span class="price-grid">
+                  <span>Cars <b>$225</b></span>
+                  <span>SUVs <b>$265</b></span>
+                  <span>Trucks <b>$305</b></span>
+                </span>
+                <span class="tier-detail">Everything in Full Reset Detail plus clay bar treatment, paint sealant, leather conditioning, engine steam clean, and machine wax.</span>
+              </label>
+            </div>
+          </section>
+
+          <section class="booking-step" data-step="1" aria-label="Choose focus area">
+            <div class="step-copy">
+              <p class="eyebrow">Step 2</p>
+              <h3>What is the main goal?</h3>
+            </div>
+
+            <div class="focus-grid" role="radiogroup" aria-label="Vehicle focus area">
+              <label class="focus-card selected">
+                <input type="radio" name="focus" value="Interior Reset" data-recommendation="Interior Detail" data-goal="Cabin cleanup, vacuuming, surfaces, windows, trash removal, and an air freshener." checked>
+                <span>Interior focused</span>
+                <small>Best for crumbs, dust, pet hair, spills, odor, or a cabin that needs attention.</small>
+              </label>
+
+              <label class="focus-card">
+                <input type="radio" name="focus" value="Exterior Gloss" data-recommendation="Full Reset Detail" data-goal="Paint gloss, spray wax protection, premium finish, and extra exterior attention.">
+                <span>Exterior focused</span>
+                <small>Best for paint shine, road film, bug buildup, water spots, and protection.</small>
+              </label>
+
+              <label class="focus-card">
+                <input type="radio" name="focus" value="Wheels and Trim" data-recommendation="Signature Wash" data-goal="Wheel cleaning, tire shine, exterior windows, and a clean first impression.">
+                <span>Wheel focused</span>
+                <small>Best for brake dust, dull tires, dirty rims, and making the vehicle pop from the side.</small>
+              </label>
+
+              <label class="focus-card">
+                <input type="radio" name="focus" value="Full Transformation" data-recommendation="Executive Showroom Detail" data-goal="Complete inside/outside reset with clay bar, sealant, leather care, engine steam, and machine wax.">
+                <span>Full transformation</span>
+                <small>Best when the whole vehicle needs the most Legendary result possible.</small>
+              </label>
+            </div>
+
+            <aside class="recommendation" aria-live="polite">
+              <span>Recommended package</span>
+              <strong id="recommendedTier">Interior Detail</strong>
+              <p id="recommendationReason">Cabin cleanup, vacuuming, surfaces, windows, trash removal, and an air freshener.</p>
+              <button class="secondary-button" id="applyRecommendationButton" type="button">Use recommendation</button>
+            </aside>
+
+            <div class="wizard-controls">
+              <button class="secondary-button" type="button" data-back>Back</button>
+              <button class="primary-button" type="button" data-next>Continue</button>
+            </div>
+          </section>
+
+          <section class="booking-step" data-step="2" aria-label="Enter details">
+            <div class="step-copy">
+              <p class="eyebrow">Step 3</p>
+              <h3>Tell us where to pull up</h3>
+            </div>
+
+            <form id="requestForm" class="request-form">
+              <input id="focusAreaInput" name="focusArea" type="hidden" value="Interior Reset">
+              <input id="focusGoalInput" name="focusGoal" type="hidden" value="Cabin cleanup, vacuuming, surfaces, windows, trash removal, and an air freshener.">
+              <input id="recommendedTierInput" name="recommendedTier" type="hidden" value="Interior Detail">
+              <input id="formStartedAtInput" name="formStartedAt" type="hidden">
+              <label class="bot-field" aria-hidden="true" tabindex="-1">
+                Company
+                <input name="company" type="text" autocomplete="off" tabindex="-1">
+              </label>
+
+              <fieldset>
+                <legend>Contact</legend>
+                <div class="grid-two">
+                  <label>
+                    Name
+                    <input name="name" type="text" autocomplete="name" required placeholder="Full name">
+                  </label>
+                  <label>
+                    Phone
+                    <input name="phone" type="tel" autocomplete="tel" required placeholder="(555) 123-4567">
+                  </label>
+                </div>
+                <label>
+                  Email
+                  <input name="email" type="email" autocomplete="email" placeholder="you@example.com">
+                </label>
+              </fieldset>
+
+              <fieldset>
+                <legend>Vehicle</legend>
+                <div class="grid-two">
+                  <label>
+                    Year
+                    <input name="year" type="number" inputmode="numeric" min="1950" max="2035" placeholder="2022">
+                  </label>
+                  <label>
+                    Make
+                    <input name="make" type="text" autocomplete="organization" required placeholder="Toyota">
+                  </label>
+                </div>
+                <div class="grid-two">
+                  <label>
+                    Model
+                    <input name="model" type="text" required placeholder="Camry">
+                  </label>
+                  <label>
+                    Vehicle size
+                    <select name="size" required>
+                      <option value="">Select size</option>
+                      <option value="cars">Car / Sedan / Coupe</option>
+                      <option value="suvs">SUV / Crossover</option>
+                      <option value="trucks">Truck / Large SUV</option>
+                    </select>
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend>Location and timing</legend>
+                <label>
+                  Service address
+                  <div class="location-row">
+                    <input name="address" id="addressInput" type="text" autocomplete="street-address" required placeholder="Street, city, state">
+                    <button class="ghost-button" id="locateButton" type="button">Use GPS</button>
+                  </div>
+                </label>
+                <div class="grid-two">
+                  <label>
+                    Preferred date
+                    <input name="date" type="date" required>
+                  </label>
+                  <label>
+                    Preferred time
+                    <select name="time" required>
+                      <option value="">Select window</option>
+                      <option>Morning</option>
+                      <option>Midday</option>
+                      <option>Afternoon</option>
+                      <option>Evening</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="addon-field">
+                  <span>Add-ons / specialty services</span>
+                  <div class="addon-grid">
+                    <label><input type="checkbox" name="addOns" value="Pet Hair Removal $25+"> Pet Hair Removal <span>$25+</span></label>
+                    <label><input type="checkbox" name="addOns" value="Seat Shampoo $30+"> Seat Shampoo <span>$30+</span></label>
+                    <label><input type="checkbox" name="addOns" value="Interior Steam Clean $40"> Interior Steam Clean <span>$40</span></label>
+                    <label><input type="checkbox" name="addOns" value="Headlight Restoration $75"> Headlight Restoration <span>$75</span></label>
+                    <label><input type="checkbox" name="addOns" value="Clay Bar Treatment $60"> Clay Bar Treatment <span>$60</span></label>
+                    <label><input type="checkbox" name="addOns" value="Odor Removal $50"> Odor Removal <span>$50</span></label>
+                    <label><input type="checkbox" name="addOns" value="Leather Conditioning $45"> Leather Conditioning <span>$45</span></label>
+                  </div>
+                </div>
+                <label>
+                  Notes
+                  <textarea name="notes" rows="4" placeholder="Gate code, heavy pet hair, stains, water access, special requests"></textarea>
+                </label>
+              </fieldset>
+
+              <aside class="summary" aria-live="polite">
+                <div>
+                  <span>Selected tier</span>
+                  <strong id="summaryTier">Signature Wash</strong>
+                </div>
+                <div>
+                  <span>Starting at</span>
+                  <strong id="summaryPrice">From $55</strong>
+                </div>
+                <div>
+                  <span>Focus area</span>
+                  <strong id="summaryFocus">Interior Reset</strong>
+                </div>
+              </aside>
+
+              <div class="wizard-controls">
+                <button class="secondary-button" type="button" data-back>Back</button>
+                <button class="primary-button" type="button" data-next>Continue</button>
+              </div>
+              <button class="secondary-button full-width" id="saveDraftButton" type="button">Save draft</button>
+              <p class="form-status" id="formStatus" role="status"></p>
+            </form>
+          </section>
+
+          <section class="booking-step" data-step="3" aria-label="Payment preference">
+            <div class="step-copy">
+              <p class="eyebrow">Step 4</p>
+              <h3>Secure your spot</h3>
+            </div>
+
+            <div class="payment-options" role="radiogroup" aria-label="Payment preference">
+              <label class="payment-card selected">
+                <input type="radio" name="paymentPreference" value="Request now" checked>
+                <span>Request now</span>
+                <small>Send the booking request first. Payment is handled after the appointment is confirmed.</small>
+              </label>
+
+              <label class="payment-card">
+                <input type="radio" name="paymentPreference" value="Pre-authorize deposit">
+                <span>Pre-authorize deposit</span>
+                <small>Place a secure Stripe hold before the detail, then capture after approval.</small>
+              </label>
+
+              <label class="payment-card">
+                <input type="radio" name="paymentPreference" value="Apple Pay / card checkout">
+                <span>Apple Pay / card</span>
+                <small>Authorize securely through Stripe Payment Element when live keys are configured.</small>
+              </label>
+            </div>
+
+            <aside class="payment-note">
+              <strong>Live payment note</strong>
+              <p>Card details are collected only inside Stripe Payment Element. Legendary Auto Spa can authorize first, then capture from the admin dashboard after approval.</p>
+            </aside>
+
+            <div class="stripe-panel hidden" id="stripePanel">
+              <div class="step-copy">
+                <p class="eyebrow">Secure Payment</p>
+                <h3>Authorize with card or Apple Pay</h3>
+              </div>
+              <div id="paymentElement" class="payment-element"></div>
+              <button class="primary-button full-width" id="authorizePaymentButton" type="button">Authorize payment</button>
+            </div>
+
+            <aside class="summary" aria-live="polite">
+              <div>
+                <span>Selected tier</span>
+                <strong id="paymentSummaryTier">Signature Wash</strong>
+              </div>
+                <div>
+                  <span>Starting at</span>
+                  <strong id="paymentSummaryPrice">From $55</strong>
+              </div>
+              <div>
+                <span>Payment</span>
+                <strong id="summaryPayment">Request now</strong>
+              </div>
+            </aside>
+
+            <div class="wizard-controls">
+              <button class="secondary-button" type="button" data-back>Back</button>
+              <button class="primary-button" id="finalSubmitButton" type="button">Send request</button>
+            </div>
+            <p class="form-status" id="finalStatus" role="status"></p>
+          </section>
+        </div>
+      </section>
+
+      <section class="request-log" aria-label="Saved requests">
+        <div class="step-header">
+          <p class="eyebrow">Recent</p>
+          <h2>Saved requests</h2>
+        </div>
+        <div id="requestList" class="request-list">
+          <p class="empty-state">No saved requests yet.</p>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-bar" aria-label="Primary">
+      <a href="#booking">Book</a>
+      <a href="tel:+15551234567">Call</a>
+      <a href="sms:+15551234567">Text</a>
+    </nav>
+
+    <script src="app.js"></script>
+  </body>
+</html>
