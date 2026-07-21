@@ -26,6 +26,7 @@ const enableAdminNotificationsButton = document.querySelector("#enableAdminNotif
 const customerSearchInput = document.querySelector("#customerSearchInput");
 const clearCustomerSearchButton = document.querySelector("#clearCustomerSearchButton");
 const customerSearchStatus = document.querySelector("#customerSearchStatus");
+const scheduleQueue = document.querySelector("#scheduleQueue");
 
 const statuses = ["new", "contacted", "scheduled", "in_progress", "complete", "canceled"];
 const paymentStatuses = ["not_started", "pending", "requires_capture", "succeeded", "canceled", "failed"];
@@ -237,6 +238,7 @@ function renderFilteredBookings() {
   }
 
   renderBookings(bookings);
+  renderScheduleQueue(allBookings);
 }
 
 function bookingMatchesQuery(booking, query) {
@@ -251,6 +253,33 @@ function bookingMatchesQuery(booking, query) {
     booking.service_address,
     booking.service_tier
   ].some((value) => String(value || "").toLowerCase().includes(query));
+}
+
+function recurringFrequency(booking) {
+  const match = String(booking.notes || "").match(/Recurring service:\s*([^\n]+)/i);
+  return match?.[1]?.trim() || "";
+}
+
+function renderScheduleQueue(bookings) {
+  const recurring = bookings.filter((booking) => recurringFrequency(booking));
+  if (!recurring.length) {
+    scheduleQueue.innerHTML = '<p class="empty-state">No recurring requests yet.</p>';
+    return;
+  }
+
+  scheduleQueue.innerHTML = recurring.map((booking) => `
+    <article class="activity-item">
+      <div>
+        <strong>${escapeHtml(booking.customer_name || "Customer")} · ${escapeHtml(recurringFrequency(booking))}</strong>
+        <p>${escapeHtml(booking.service_tier || "Detail request")} · ${escapeHtml(booking.preferred_date || "No date")} · ${escapeHtml(booking.preferred_time || "No time")}</p>
+        <small>${escapeHtml([booking.vehicle_year, booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(" "))}</small>
+      </div>
+      <span>
+        ${escapeHtml(booking.status || "new")}
+        <small>${formatDate(booking.created_at)}</small>
+      </span>
+    </article>
+  `).join("");
 }
 
 async function loadHealth() {
@@ -484,6 +513,7 @@ function renderBookings(bookings) {
   adminBookings.innerHTML = bookings.map((booking) => {
     const pricing = pricingSummary(booking);
     const mapsUrl = googleMapsUrl(booking.service_address);
+    const recurring = recurringFrequency(booking);
     return `
     <article class="admin-booking" data-id="${escapeAttribute(booking.id || "")}" data-payment-intent-id="${escapeAttribute(booking.payment_intent_id || "")}">
       <div class="booking-head">
@@ -501,6 +531,7 @@ function renderBookings(bookings) {
         <div><span>Add-ons</span><strong>${escapeHtml(booking.add_ons || "None")}</strong><p>${escapeHtml(pricing.addOnsLabel)}</p></div>
         <div><span>Estimated total</span><strong>${escapeHtml(pricing.totalLabel)}</strong><p>Package plus selected add-ons</p></div>
         <div><span>Schedule</span><strong>${escapeHtml(booking.preferred_date)}</strong><p>${escapeHtml(booking.preferred_time)}</p></div>
+        <div><span>Recurring</span><strong>${escapeHtml(recurring || "No")}</strong><p>${escapeHtml(recurring ? "In schedule queue" : "One-time request")}</p></div>
         <div><span>Location</span><strong>${escapeHtml(booking.service_address)}</strong><p>${escapeHtml(booking.notes)}</p>${mapsUrl ? `<a href="${escapeAttribute(mapsUrl)}" target="_blank" rel="noopener">Open in Google Maps</a>` : ""}</div>
         <div><span>Payment</span><strong>${escapeHtml(booking.payment_preference)}</strong><p>${escapeHtml(booking.payment_status)}</p></div>
         <div><span>Assigned</span><strong>${escapeHtml(booking.assigned_to || "Unassigned")}</strong><p>${formatDate(booking.created_at)}</p></div>

@@ -20,6 +20,16 @@
   to = "/deployment-check.html"
   status = 200
 
+[[redirects]]
+  from = "/member"
+  to = "/member.html"
+  status = 200
+
+[[redirects]]
+  from = "/confirmation"
+  to = "/confirmation.html"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]
@@ -59,5 +69,15 @@
 
 [[headers]]
   for = "/build-info.json"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/member.html"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/confirmation.html"
   [headers.values]
     Cache-Control = "no-store"

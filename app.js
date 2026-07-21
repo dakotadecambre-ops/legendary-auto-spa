@@ -1,6 +1,9 @@
 const BUSINESS_PHONE = "+12016652625";
 const BUSINESS_PHONE_DISPLAY = "201-665-2625";
 const REQUESTS_KEY = "legendary-auto-spa.requests";
+const MEMBER_ACCOUNTS_KEY = "legendary-auto-spa.memberAccounts";
+const MEMBER_SESSION_KEY = "legendary-auto-spa.memberSession";
+const REBOOK_KEY = "legendary-auto-spa.rebookRequest";
 
 const form = document.querySelector("#requestForm");
 const tierCards = [...document.querySelectorAll(".tier-card")];
@@ -42,12 +45,16 @@ const addVehicleButton = document.querySelector("#addVehicleButton");
 const additionalVehiclesList = document.querySelector("#additionalVehiclesList");
 const enableCustomerNotificationsButton = document.querySelector("#enableCustomerNotificationsButton");
 const customerNotificationStatus = document.querySelector("#customerNotificationStatus");
+const saveVehicleCheckbox = document.querySelector("#saveVehicleCheckbox");
+const recurringCheckbox = document.querySelector("#recurringCheckbox");
+const recurringFrequencyField = document.querySelector("#recurringFrequencyField");
 
 let deferredInstallPrompt = null;
 let currentStep = 0;
 let stripeInstance = null;
 let stripeElements = null;
 let additionalVehicles = [];
+let pendingConfirmationUrl = "confirmation.html";
 
 const priceDatasetKeys = {
   cars: "priceCars",
@@ -311,11 +318,16 @@ function getRequestData() {
   const extraVehicles = additionalVehiclesSummary();
   const timingNote = data.secondaryTime ? `Secondary time: ${data.secondaryTime}` : "";
   const vehicleNote = extraVehicles ? `Additional vehicles: ${extraVehicles}` : "";
-  const combinedNotes = [data.notes, timingNote, vehicleNote].filter(Boolean).join("\n\n");
+  const recurringNote = data.recurring
+    ? `Recurring service: ${data.recurringFrequency || "Frequency not selected"}`
+    : "";
+  const combinedNotes = [data.notes, timingNote, vehicleNote, recurringNote].filter(Boolean).join("\n\n");
   return {
     ...data,
     addOns: formData.getAll("addOns").join(", "),
     additionalVehicles: extraVehicles,
+    recurringService: data.recurring ? "Yes" : "No",
+    recurringFrequency: data.recurring ? data.recurringFrequency : "",
     notes: combinedNotes,
     size: vehicleTypeLabels[tier.vehicleType] || data.size,
     tier: tier.name,
@@ -335,6 +347,7 @@ function formatRequestMessage(request) {
     `Recommended: ${request.recommendedTier}`,
     request.addOns ? `Add-ons: ${request.addOns}` : null,
     request.additionalVehicles ? `Additional vehicles: ${request.additionalVehicles}` : null,
+    request.recurringService === "Yes" ? `Recurring: ${request.recurringFrequency || "Frequency not selected"}` : null,
     `Payment preference: ${request.paymentPreference || getSelectedPaymentPreference()}`,
     `Name: ${request.name}`,
     `Phone: ${request.phone}`,
@@ -355,10 +368,54 @@ function readRequests() {
   }
 }
 
+function readMemberAccounts() {
+  try {
+    return JSON.parse(localStorage.getItem(MEMBER_ACCOUNTS_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function activeMemberPhone() {
+  return localStorage.getItem(MEMBER_SESSION_KEY) || "";
+}
+
+function activeMember() {
+  const phone = activeMemberPhone();
+  return phone ? readMemberAccounts()[phone] || null : null;
+}
+
+function saveMemberAccount(phone, account) {
+  const accounts = readMemberAccounts();
+  accounts[phone] = account;
+  localStorage.setItem(MEMBER_ACCOUNTS_KEY, JSON.stringify(accounts));
+}
+
+function saveVehicleToMember(request) {
+  const phone = activeMemberPhone();
+  if (!phone || !saveVehicleCheckbox?.checked) return;
+  const account = activeMember();
+  if (!account) return;
+  const vehicle = {
+    year: request.year || "",
+    make: request.make || "",
+    model: request.model || "",
+    size: request.size || "",
+    tier: request.tier || "",
+    savedAt: new Date().toISOString()
+  };
+  const key = [vehicle.year, vehicle.make, vehicle.model, vehicle.size].join("|").toLowerCase();
+  const vehicles = (account.vehicles || []).filter((item) => (
+    [item.year, item.make, item.model, item.size].join("|").toLowerCase() !== key
+  ));
+  saveMemberAccount(phone, { ...account, vehicles: [vehicle, ...vehicles].slice(0, 12) });
+}
+
 function saveRequest(request) {
   const requests = [request, ...readRequests()].slice(0, 8);
   localStorage.setItem(REQUESTS_KEY, JSON.stringify(requests));
   renderRequests();
+  saveVehicleToMember(request);
 }
 
 function renderRequests() {
@@ -388,6 +445,7 @@ function renderRequests() {
           <div><span>Add-ons</span><strong>${escapeHtml(request.addOns || "None")}</strong><p>${escapeHtml(receipt.addOnsLabel)}</p></div>
           <div><span>Total</span><strong>${escapeHtml(receipt.totalLabel)}</strong><p>Package plus selected add-ons</p></div>
           <div><span>Extra vehicles</span><strong>${escapeHtml(request.additionalVehicles || "None")}</strong><p>${escapeHtml(request.additionalVehicles ? "Included in total" : "Single vehicle request")}</p></div>
+          <div><span>Recurring</span><strong>${escapeHtml(request.recurringService === "Yes" ? request.recurringFrequency || "Recurring" : "No")}</strong><p>${escapeHtml(request.recurringService === "Yes" ? "Saved to schedule request" : "One-time request")}</p></div>
           <div><span>Payment</span><strong>${escapeHtml(request.paymentPreference || "Request now")}</strong><p>${escapeHtml(request.paymentStatus || "Pending review")}</p></div>
           <div><span>Schedule</span><strong>${escapeHtml(request.date || "No date")}</strong><p>${escapeHtml([request.time, request.secondaryTime ? `Backup: ${request.secondaryTime}` : ""].filter(Boolean).join(" · ") || "No time")}</p></div>
           <div><span>Location</span><strong>${escapeHtml(request.address || "No address added")}</strong><p>${escapeHtml(request.notes || "")}</p></div>
@@ -437,6 +495,10 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
+function escapeAttribute(value) {
+  return escapeHtml(value).replaceAll("'", "&#39;");
+}
+
 function openSubmissionHandoff(request) {
   const message = formatRequestMessage(request);
   const smsUrl = `sms:${BUSINESS_PHONE}?&body=${encodeURIComponent(message)}`;
@@ -453,6 +515,38 @@ function openSubmissionHandoff(request) {
 function setRequestStatus(message) {
   statusText.textContent = message;
   finalStatus.textContent = message;
+}
+
+function applyRequestPrefill(request) {
+  if (!request) return;
+  const fields = ["name", "phone", "email", "year", "make", "model", "address", "date", "time", "secondaryTime", "notes"];
+  fields.forEach((name) => {
+    const field = form.elements[name];
+    if (field && request[name] != null) field.value = request[name];
+  });
+  if (request.tier) selectTierByName(request.tier);
+  if (request.size) {
+    const sizeKey = Object.entries(vehicleTypeLabels).find(([, label]) => label === request.size)?.[0] || request.size;
+    syncVehicleClass(sizeKey);
+  }
+  if (request.recurringService === "Yes") {
+    recurringCheckbox.checked = true;
+    recurringFrequencyField.classList.remove("hidden");
+    form.elements.recurringFrequency.value = request.recurringFrequency || "";
+  }
+  goToStep(2);
+  setRequestStatus("Review the request details, then continue to confirm.");
+}
+
+function applyPendingRebook() {
+  const raw = sessionStorage.getItem(REBOOK_KEY);
+  if (!raw) return;
+  sessionStorage.removeItem(REBOOK_KEY);
+  try {
+    applyRequestPrefill(JSON.parse(raw));
+  } catch {
+    setRequestStatus("Could not load that saved request.");
+  }
 }
 
 function bookingReference(result) {
@@ -475,6 +569,12 @@ function updateSavedRequestReference(createdAt, result) {
   ));
   localStorage.setItem(REQUESTS_KEY, JSON.stringify(nextRequests));
   renderRequests();
+}
+
+function confirmationUrl(result) {
+  const id = result?.booking?.id;
+  const ref = id ? String(id).split("-")[0].toUpperCase() : "";
+  return `confirmation.html${ref ? `?ref=${encodeURIComponent(ref)}` : ""}`;
 }
 
 async function sendBookingToBackend(request) {
@@ -630,6 +730,11 @@ async function submitRequest() {
     goToStep(2);
     return;
   }
+  if (recurringCheckbox.checked && !form.elements.recurringFrequency.value) {
+    goToStep(2);
+    setRequestStatus("Select how often you want the recurring wash.");
+    return;
+  }
   const request = getRequestData();
   request.paymentPreference = getSelectedPaymentPreference();
   saveRequest(request);
@@ -638,6 +743,7 @@ async function submitRequest() {
   try {
     const result = await sendBookingToBackend(request);
     const reference = bookingReference(result);
+    pendingConfirmationUrl = confirmationUrl(result);
     updateSavedRequestReference(request.createdAt, result);
     if (result.payment?.client_secret) {
       try {
@@ -649,10 +755,10 @@ async function submitRequest() {
       return;
     }
     if (result.payment_setup_required) {
-      setRequestStatus(`Request received.${reference} Payment authorization is not configured yet, so Legendary Auto Spa will handle payment after review.`);
+      window.location.href = pendingConfirmationUrl;
       return;
     }
-    setRequestStatus(`Request received.${reference} Legendary Auto Spa can now review it in the admin dashboard.`);
+    window.location.href = pendingConfirmationUrl;
   } catch (error) {
     if (error.recoverable) {
       const prefix = error.setupRequired
@@ -688,7 +794,7 @@ authorizePaymentButton.addEventListener("click", async () => {
     return;
   }
 
-  setRequestStatus("Payment authorized. Legendary Auto Spa can now review and schedule your request.");
+  window.location.href = pendingConfirmationUrl;
   authorizePaymentButton.textContent = "Authorized";
 });
 
@@ -721,6 +827,11 @@ locateButton.addEventListener("click", () => {
 
 form.querySelectorAll("input[name='addOns']").forEach((input) => {
   input.addEventListener("change", updateTierSelection);
+});
+
+recurringCheckbox.addEventListener("change", () => {
+  recurringFrequencyField.classList.toggle("hidden", !recurringCheckbox.checked);
+  if (!recurringCheckbox.checked) form.elements.recurringFrequency.value = "";
 });
 
 enableCustomerNotificationsButton.addEventListener("click", async () => {
@@ -777,3 +888,4 @@ updateFocusSelection();
 updatePaymentSelection();
 goToStep(0);
 renderRequests();
+applyPendingRebook();
