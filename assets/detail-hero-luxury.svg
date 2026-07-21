@@ -1,0 +1,35 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#050505"/>
+  <radialGradient id="goldGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1020 455) rotate(155) scale(720 290)">
+    <stop stop-color="#F6D37B" stop-opacity=".68"/>
+    <stop offset=".45" stop-color="#8F6726" stop-opacity=".24"/>
+    <stop offset="1" stop-color="#050505" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="paint" x1="340" x2="1280" y1="330" y2="646" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#111"/>
+    <stop offset=".42" stop-color="#242424"/>
+    <stop offset=".7" stop-color="#080808"/>
+    <stop offset="1" stop-color="#1A1A1A"/>
+  </linearGradient>
+  <linearGradient id="gold" x1="238" x2="1348" y1="617" y2="617" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#6F4C18"/>
+    <stop offset=".28" stop-color="#F7D882"/>
+    <stop offset=".55" stop-color="#B8872E"/>
+    <stop offset=".82" stop-color="#FFE49B"/>
+    <stop offset="1" stop-color="#805A1F"/>
+  </linearGradient>
+  <rect width="1600" height="900" fill="url(#goldGlow)"/>
+  <path d="M205 643c152-72 338-109 558-111 193-2 413 28 656 89" stroke="#CFA75A" stroke-width="2" opacity=".26"/>
+  <path d="M274 624c40-78 97-124 171-137l154-31c83-111 197-163 342-157 122 4 229 57 322 158l134 33c64 15 108 54 131 118l-76 18c-40 9-72 19-97 28H341c-35-5-57-15-67-30Z" fill="url(#paint)" stroke="url(#gold)" stroke-width="5"/>
+  <path d="M611 459c67-84 159-124 278-119 103 4 196 43 279 119H611Z" fill="#070707" stroke="#D3A74E" stroke-width="3" opacity=".9"/>
+  <path d="M632 459c64-71 147-103 249-99 87 3 165 35 237 99H632Z" fill="#151515"/>
+  <path d="M425 557c98-17 201-24 309-22M868 534c146 6 290 23 431 52" stroke="#E2BF72" stroke-width="9" stroke-linecap="round" opacity=".72"/>
+  <path d="M328 610h183M1115 610h254" stroke="#FFD985" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="512" cy="638" r="82" fill="#060606" stroke="#CFA75A" stroke-width="6"/>
+  <circle cx="512" cy="638" r="50" fill="#111" stroke="#3B321F" stroke-width="20"/>
+  <circle cx="1217" cy="638" r="82" fill="#060606" stroke="#CFA75A" stroke-width="6"/>
+  <circle cx="1217" cy="638" r="50" fill="#111" stroke="#3B321F" stroke-width="20"/>
+  <path d="M252 702h1080" stroke="#D6B870" stroke-width="2" opacity=".35"/>
+  <path d="M398 250h130M1054 252h180M235 354h235M1158 374h210" stroke="#F3CF74" stroke-width="2" opacity=".26"/>
+  <text x="800" y="814" text-anchor="middle" fill="#E8C56F" font-family="Georgia, serif" font-size="42" letter-spacing="12">LEGENDARY AUTO SPA</text>
+</svg>

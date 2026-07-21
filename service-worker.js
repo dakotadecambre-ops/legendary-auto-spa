@@ -1,4 +1,4 @@
-const CACHE_NAME = "legendary-auto-spa-v7";
+const CACHE_NAME = "legendary-auto-spa-v8";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -7,8 +7,8 @@ const APP_SHELL = [
   "./manifest.webmanifest",
   "./assets/icon.svg",
   "./assets/legendary-brand.svg",
-  "./assets/detail-hero-luxury.png",
-  "./assets/detail-hero.png"
+  "./assets/detail-hero-luxury.svg",
+  "./assets/detail-hero.svg"
 ];
 
 self.addEventListener("install", (event) => {
