@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#080808">
+    <title>Legendary Admin</title>
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="admin.css">
+  </head>
+  <body>
+    <header class="app-header" aria-label="Legendary Auto Spa admin">
+      <div class="brand-lockup">
+        <img class="brand-mark-image" src="assets/icon.svg" alt="" aria-hidden="true">
+        <div>
+          <p class="eyebrow">Admin Dashboard</p>
+          <h1>Legendary Auto Spa</h1>
+        </div>
+      </div>
+      <a class="admin-link" href="index.html">Customer app</a>
+    </header>
+
+    <main class="admin-main">
+      <section class="admin-hero">
+        <img src="assets/legendary-brand.svg" alt="Legendary Auto Spa">
+        <div>
+          <p class="eyebrow">Backend</p>
+          <h2>Requests, customers, vehicles, payment status, and job notes.</h2>
+        </div>
+      </section>
+
+      <section class="admin-panel" id="loginPanel">
+        <div class="step-header">
+          <p class="eyebrow">Secure Access</p>
+          <h2>Admin login</h2>
+        </div>
+        <form id="adminLoginForm" class="admin-login">
+          <label>
+            Admin email
+            <input id="adminEmail" type="email" autocomplete="username" placeholder="admin@example.com">
+          </label>
+          <label>
+            Admin password
+            <input id="adminPassword" type="password" autocomplete="current-password" required placeholder="Enter admin password">
+          </label>
+          <button class="primary-button" type="submit">Log in</button>
+        </form>
+        <p class="form-status" id="adminStatus" role="status"></p>
+      </section>
+
+      <section class="admin-panel hidden" id="dashboardPanel">
+        <div class="admin-toolbar">
+          <div>
+            <p class="eyebrow">Live Requests</p>
+            <h2>Bookings</h2>
+          </div>
+          <div class="admin-actions">
+            <button class="secondary-button" id="createTestBookingButton" type="button">Create test booking</button>
+            <button class="secondary-button" id="refreshBookingsButton" type="button">Refresh</button>
+            <button class="secondary-button" id="logoutButton" type="button">Log out</button>
+          </div>
+        </div>
+        <p class="form-status" id="adminActionStatus" role="status"></p>
+        <div class="system-status" id="systemStatus">
+          <p class="empty-state">System status will load after login.</p>
+        </div>
+        <section class="admin-users-panel" id="adminUsersPanel" aria-labelledby="adminUsersTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Team Access</p>
+              <h3 id="adminUsersTitle">Admin Users</h3>
+            </div>
+          </div>
+          <form class="admin-user-form" id="adminUserForm">
+            <label>
+              Email
+              <input id="adminUserEmail" type="email" autocomplete="off" placeholder="partner@example.com" required>
+            </label>
+            <label>
+              Password
+              <input id="adminUserPassword" type="password" autocomplete="new-password" placeholder="10+ characters">
+            </label>
+            <label>
+              Role
+              <select id="adminUserRole">
+                <option value="admin">Admin</option>
+                <option value="manager">Manager</option>
+                <option value="viewer">Viewer</option>
+              </select>
+            </label>
+            <label class="checkbox-label">
+              <input id="adminUserActive" type="checkbox" checked>
+              Active
+            </label>
+            <button class="secondary-button" type="submit">Save admin</button>
+          </form>
+          <p class="form-status" id="adminUsersStatus" role="status"></p>
+          <div class="admin-users-list" id="adminUsers">
+            <p class="empty-state">Admin users will load after login.</p>
+          </div>
+        </section>
+        <section class="activity-panel" aria-labelledby="activityTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Backend Activity</p>
+              <h3 id="activityTitle">Activity Feed</h3>
+            </div>
+          </div>
+          <div class="activity-list" id="activityFeed">
+            <p class="empty-state">Activity will load after login.</p>
+          </div>
+        </section>
+        <div class="admin-stats" id="adminStats"></div>
+        <div class="booking-list" id="adminBookings">
+          <p class="empty-state">No bookings loaded yet.</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="admin.js"></script>
+  </body>
+</html>
