@@ -876,12 +876,32 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 
+  .hero {
+    min-height: 560px;
+  }
+
+  .hero img {
+    min-height: 560px;
+    object-position: 52% center;
+    opacity: 0.78;
+  }
+
+  .hero::after {
+    background:
+      linear-gradient(180deg, rgba(5, 5, 5, 0.18) 0%, rgba(5, 5, 5, 0.48) 42%, rgba(5, 5, 5, 0.96) 100%),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.18) 78%);
+  }
+
+  .hero-copy {
+    bottom: 26px;
+  }
+
   .hero-copy h2 {
     font-size: clamp(2rem, 10vw, 3.15rem);
   }
 
   .hero-brand {
-    max-height: 158px;
+    display: none;
   }
 }
 
