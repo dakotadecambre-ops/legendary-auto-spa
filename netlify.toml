@@ -2,6 +2,9 @@
   publish = "."
   functions = "netlify/functions"
 
+[build.environment]
+  NODE_VERSION = "20"
+
 [[redirects]]
   from = "/admin"
   to = "/admin.html"
@@ -10,6 +13,11 @@
 [[redirects]]
   from = "/setup-admin"
   to = "/setup-admin.html"
+  status = 200
+
+[[redirects]]
+  from = "/deployment-check"
+  to = "/deployment-check.html"
   status = 200
 
 [[headers]]
@@ -36,5 +44,20 @@
 
 [[headers]]
   for = "/setup-admin.js"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/deployment-check.html"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/deployment-check.js"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/build-info.json"
   [headers.values]
     Cache-Control = "no-store"

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Legendary Auto Spa icon">
+  <defs>
+    <linearGradient id="gold" x1="117" y1="91" x2="390" y2="421" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff0b7"/>
+      <stop offset=".43" stop-color="#d6b870"/>
+      <stop offset="1" stop-color="#8e6724"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="35%" cy="18%" r="70%">
+      <stop offset="0" stop-color="#2a2a2a"/>
+      <stop offset="1" stop-color="#050505"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="104" fill="url(#shine)"/>
+  <path d="M156 132h200l-13 146c-4 50-39 92-87 108-48-16-83-58-87-108l-13-146Z" fill="#080808" stroke="url(#gold)" stroke-width="12"/>
+  <path d="M173 125l24-48 31 36 28-59 28 59 31-36 24 48" fill="url(#gold)" stroke="#f4d98c" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M216 173h72v134h75v61H216V173Z" fill="url(#gold)"/>
+  <path d="M73 313c54-34 116-55 187-61 71 6 133 27 179 61" fill="none" stroke="#f4d98c" stroke-width="10" stroke-linecap="round" opacity=".9"/>
+  <path d="M88 349c59-12 118-18 176-18 56 0 110 6 160 18" fill="none" stroke="#b98934" stroke-width="8" stroke-linecap="round" opacity=".85"/>
+</svg>

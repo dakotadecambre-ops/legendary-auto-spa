@@ -1,0 +1,17 @@
+{
+  "name": "legendary-auto-spa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Legendary Auto Spa customer booking app with Netlify Functions admin backend.",
+  "scripts": {
+    "check:source": "sh scripts/check-source-root.sh",
+    "check:live": "sh scripts/check-live-deploy.sh",
+    "deploy:netlify": "npx netlify-cli deploy --prod --dir=. --functions=netlify/functions"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.38.1"
+  }
+}

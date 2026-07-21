@@ -64,6 +64,21 @@
               <h3>Choose your package</h3>
             </div>
 
+            <div class="vehicle-class-picker" role="radiogroup" aria-label="Vehicle class">
+              <label class="vehicle-class-option selected">
+                <input type="radio" name="vehicleClass" value="cars" checked>
+                <span>Car</span>
+              </label>
+              <label class="vehicle-class-option">
+                <input type="radio" name="vehicleClass" value="suvs">
+                <span>SUV</span>
+              </label>
+              <label class="vehicle-class-option">
+                <input type="radio" name="vehicleClass" value="trucks">
+                <span>Truck</span>
+              </label>
+            </div>
+
             <div class="tiers" role="radiogroup" aria-label="Wash tiers">
               <label class="tier-card selected">
                 <input type="radio" name="tier" value="Signature Wash" data-price-cars="55" data-price-suvs="65" data-price-trucks="75" checked>
@@ -149,6 +164,10 @@
                 </span>
                 <span class="tier-detail">Everything in Full Reset Detail plus clay bar treatment, paint sealant, leather conditioning, engine steam clean, and machine wax.</span>
               </label>
+            </div>
+
+            <div class="wizard-controls">
+              <button class="primary-button" type="button" data-next>Continue</button>
             </div>
           </section>
 
@@ -251,8 +270,7 @@
                   <label>
                     Vehicle size
                     <select name="size" required>
-                      <option value="">Select size</option>
-                      <option value="cars">Car / Sedan / Coupe</option>
+                      <option value="cars" selected>Car / Sedan / Coupe</option>
                       <option value="suvs">SUV / Crossover</option>
                       <option value="trucks">Truck / Large SUV</option>
                     </select>
@@ -404,8 +422,8 @@
 
     <nav class="bottom-bar" aria-label="Primary">
       <a href="#booking">Book</a>
-      <a href="tel:+15551234567">Call</a>
-      <a href="sms:+15551234567">Text</a>
+      <a href="tel:+12016652625">Call</a>
+      <a href="sms:+12016652625">Text</a>
     </nav>
 
     <script src="app.js"></script>

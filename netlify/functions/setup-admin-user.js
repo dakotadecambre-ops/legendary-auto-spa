@@ -5,7 +5,6 @@ const {
   supabaseFetch,
   supabaseConfigured,
   hashPassword,
-  normalizeAdminRole,
   isMissingSchemaError
 } = require("./_shared");
 
@@ -17,23 +16,36 @@ exports.handler = async (event) => {
 
   const input = parseJson(event);
   if (!input) return response(400, { error: "Invalid JSON body" });
-  if (input.setup_key !== process.env.ADMIN_SETUP_KEY) return response(401, { error: "Invalid setup key" });
+
+  const submittedSetupKey = String(input.setup_key || "").trim();
+  const configuredSetupKey = String(process.env.ADMIN_SETUP_KEY || "").trim();
+  if (!submittedSetupKey) return response(400, { error: "Setup key is required" });
+  if (submittedSetupKey !== configuredSetupKey) return response(401, { error: "Invalid setup key" });
 
   const email = String(input.email || "").trim().toLowerCase();
   const password = String(input.password || "");
-  const role = normalizeAdminRole(input.role || "admin");
   if (!email || !email.includes("@")) return response(400, { error: "Valid email is required" });
   if (password.length < 10) return response(400, { error: "Password must be at least 10 characters" });
 
-  const user = {
-    email,
-    role,
-    password_hash: hashPassword(password),
-    active: true,
-    updated_at: new Date().toISOString()
-  };
-
   try {
+    const existingUsers = await supabaseFetch("admin_users?select=id,email&limit=1", {
+      method: "GET"
+    });
+
+    if (existingUsers?.length) {
+      return response(409, {
+        error: "Initial admin already exists. Log in at /admin and add partners from the Admin Users panel."
+      });
+    }
+
+    const user = {
+      email,
+      role: "admin",
+      password_hash: hashPassword(password),
+      active: true,
+      updated_at: new Date().toISOString()
+    };
+
     const result = await supabaseFetch("admin_users?on_conflict=email", {
       method: "POST",
       headers: { prefer: "resolution=merge-duplicates,return=representation" },

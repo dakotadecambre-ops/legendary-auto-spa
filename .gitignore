@@ -1,0 +1,6 @@
+.DS_Store
+.env
+*.swp
+*.swo
+legendary-auto-spa-app.zip
+legendary-auto-spa-app/

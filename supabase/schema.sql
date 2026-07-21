@@ -35,6 +35,12 @@ create index if not exists bookings_payment_status_idx on public.bookings (payme
 create index if not exists bookings_phone_idx on public.bookings (phone);
 
 alter table public.bookings add column if not exists add_ons text;
+alter table public.bookings drop constraint if exists bookings_status_check;
+alter table public.bookings add constraint bookings_status_check
+check (status in ('new', 'contacted', 'scheduled', 'in_progress', 'complete', 'canceled'));
+alter table public.bookings drop constraint if exists bookings_payment_status_check;
+alter table public.bookings add constraint bookings_payment_status_check
+check (payment_status in ('not_started', 'pending', 'requires_capture', 'succeeded', 'canceled', 'failed'));
 
 create table if not exists public.customers (
   id uuid primary key default gen_random_uuid(),
@@ -106,6 +112,12 @@ create index if not exists jobs_status_idx on public.jobs (status);
 create index if not exists jobs_payment_status_idx on public.jobs (payment_status);
 
 alter table public.jobs add column if not exists add_ons text;
+alter table public.jobs drop constraint if exists jobs_status_check;
+alter table public.jobs add constraint jobs_status_check
+check (status in ('new', 'contacted', 'scheduled', 'in_progress', 'complete', 'canceled'));
+alter table public.jobs drop constraint if exists jobs_payment_status_check;
+alter table public.jobs add constraint jobs_payment_status_check
+check (payment_status in ('not_started', 'pending', 'requires_capture', 'succeeded', 'canceled', 'failed'));
 
 create table if not exists public.booking_events (
   id uuid primary key default gen_random_uuid(),
@@ -135,6 +147,23 @@ create table if not exists public.admin_users (
 
 create index if not exists admin_users_email_idx on public.admin_users (email);
 create index if not exists admin_users_active_idx on public.admin_users (active);
+
+alter table public.admin_users drop constraint if exists admin_users_role_check;
+alter table public.admin_users add constraint admin_users_role_check
+check (role in ('admin', 'manager', 'viewer'));
+
+create or replace view public.legendary_schema_constraints as
+select con.conname
+from pg_constraint con
+join pg_namespace nsp on nsp.oid = con.connamespace
+where nsp.nspname = 'public'
+  and con.conname in (
+    'bookings_status_check',
+    'bookings_payment_status_check',
+    'jobs_status_check',
+    'jobs_payment_status_check',
+    'admin_users_role_check'
+  );
 
 alter table public.bookings enable row level security;
 alter table public.customers enable row level security;

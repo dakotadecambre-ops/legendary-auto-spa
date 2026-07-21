@@ -35,6 +35,13 @@
           <p class="eyebrow">Secure Setup</p>
           <h2>Use your setup key</h2>
         </div>
+        <div class="health-grid setup-preflight" id="setupPreflight" aria-live="polite">
+          <article class="health-card warn">
+            <h3>Checking deployment</h3>
+            <p>Confirming this site can reach the setup backend before you create an admin login.</p>
+            <small>Run /deployment-check if this stays here.</small>
+          </article>
+        </div>
         <form id="setupAdminForm" class="admin-login">
           <label>
             Setup key
@@ -48,17 +55,11 @@
             Admin password
             <input id="setupPassword" type="password" autocomplete="new-password" required minlength="10" placeholder="At least 10 characters">
           </label>
-          <label>
-            Role
-            <select id="setupRole">
-              <option value="admin">Admin</option>
-              <option value="manager">Manager</option>
-              <option value="viewer">Viewer</option>
-            </select>
-          </label>
-          <button class="primary-button" type="submit">Create admin login</button>
+          <input id="setupRole" type="hidden" value="admin">
+          <button class="primary-button" id="setupSubmitButton" type="submit">Create admin login</button>
         </form>
         <p class="form-status" id="setupStatus" role="status"></p>
+        <p class="form-status"><a href="deployment-check.html">Open deployment check</a></p>
       </section>
     </main>
 

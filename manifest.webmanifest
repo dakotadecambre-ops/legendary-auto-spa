@@ -1,0 +1,26 @@
+{
+  "name": "Legendary Auto Spa",
+  "short_name": "Legendary",
+  "description": "Pull Up Dirty... Leave Legendary. Request high end mobile car detailing from Legendary Auto Spa.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#080808",
+  "theme_color": "#080808",
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Book a Detail",
+      "short_name": "Book",
+      "url": "./index.html#requestForm"
+    }
+  ]
+}

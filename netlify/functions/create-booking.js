@@ -9,6 +9,7 @@ const {
   createRelatedBookingRecords,
   supabaseFetch,
   supabaseConfigured,
+  setupErrorResponse,
   createManualCapturePaymentIntent,
   sendNotifications,
   notificationConfigStatus,
@@ -128,7 +129,7 @@ exports.handler = async (event) => {
       } : null
     });
   } catch (error) {
-    return response(500, { error: error.message });
+    return setupErrorResponse(error);
   }
 };
 

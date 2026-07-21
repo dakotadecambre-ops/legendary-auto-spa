@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 520" role="img" aria-label="Legendary Auto Spa brand mark">
+  <defs>
+    <linearGradient id="brandGold" x1="110" y1="70" x2="850" y2="470" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff4bd"/>
+      <stop offset=".22" stop-color="#e7c36d"/>
+      <stop offset=".52" stop-color="#a97726"/>
+      <stop offset=".74" stop-color="#f7df96"/>
+      <stop offset="1" stop-color="#8d621e"/>
+    </linearGradient>
+    <linearGradient id="softGold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff1b7"/>
+      <stop offset="1" stop-color="#bd8c35"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-30%" width="140%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="980" height="520" rx="42" fill="#050505"/>
+  <path d="M122 263c64-47 159-73 269-78 43-47 156-49 200 0 108 6 204 33 267 78" fill="none" stroke="url(#brandGold)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M86 309c84-33 178-50 284-51M610 258c106 1 201 18 284 51" fill="none" stroke="url(#brandGold)" stroke-width="7" stroke-linecap="round" opacity=".92"/>
+  <path d="M132 330c72-12 146-17 222-14M626 316c76-3 150 2 222 14" fill="none" stroke="#e4be68" stroke-width="4" stroke-linecap="round" opacity=".75"/>
+  <path d="M390 130h200l-12 149c-4 49-39 92-88 108-49-16-84-59-88-108L390 130Z" fill="#080808" stroke="url(#brandGold)" stroke-width="8"/>
+  <path d="M424 122l24-46 28 35 18-55 21 55 30-35 22 46" fill="url(#softGold)" stroke="#f2d88c" stroke-width="5" stroke-linejoin="round"/>
+  <text x="490" y="285" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="132" font-weight="700" fill="url(#brandGold)" filter="url(#glow)">L</text>
+  <text x="490" y="420" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="96" font-weight="700" letter-spacing="7" fill="url(#brandGold)">LEGENDARY</text>
+  <line x1="198" y1="457" x2="365" y2="457" stroke="#d6b870" stroke-width="5"/>
+  <text x="490" y="472" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="700" letter-spacing="14" fill="#f6f1e7">AUTO SPA</text>
+  <line x1="615" y1="457" x2="782" y2="457" stroke="#d6b870" stroke-width="5"/>
+</svg>

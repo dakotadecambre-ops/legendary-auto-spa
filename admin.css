@@ -1,0 +1,437 @@
+.admin-main {
+  max-width: 1180px;
+}
+
+.admin-link {
+  color: var(--gold-bright);
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.admin-hero {
+  display: grid;
+  gap: 18px;
+  padding: 28px 0 10px;
+}
+
+.admin-hero img {
+  width: min(100%, 460px);
+}
+
+.admin-hero h2 {
+  max-width: 780px;
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 7vw, 4.2rem);
+  line-height: 0.98;
+}
+
+.admin-panel {
+  padding: 18px;
+  border: 1px solid rgba(214, 184, 112, 0.22);
+  border-radius: 8px;
+  background: rgba(17, 17, 17, 0.9);
+  box-shadow: var(--shadow);
+}
+
+.hidden {
+  display: none !important;
+}
+
+.admin-login {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-toolbar,
+.admin-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-actions {
+  justify-content: flex-end;
+}
+
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.system-status,
+.admin-users-panel,
+.activity-panel {
+  margin: 16px 0;
+}
+
+.panel-heading h3 {
+  margin: 0;
+  color: white;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.45rem;
+}
+
+.admin-user-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid rgba(214, 184, 112, 0.18);
+  border-radius: 8px;
+  background: #0b0b0b;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  gap: 9px;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 48px;
+  color: white;
+  font-weight: 850;
+}
+
+.checkbox-label input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--gold);
+}
+
+.admin-users-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.activity-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.activity-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px;
+  border: 1px solid rgba(214, 184, 112, 0.18);
+  border-left: 3px solid var(--gold);
+  border-radius: 8px;
+  background: #0b0b0b;
+}
+
+.activity-item.success {
+  border-left-color: #76ca95;
+}
+
+.activity-item.error {
+  border-left-color: #e46e6e;
+}
+
+.activity-item.warning {
+  border-left-color: var(--gold-bright);
+}
+
+.activity-item strong,
+.activity-item p,
+.activity-item span,
+.activity-item small {
+  display: block;
+}
+
+.activity-item strong {
+  color: white;
+}
+
+.activity-item p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.activity-item span {
+  flex: 0 0 auto;
+  color: var(--gold);
+  font-size: 0.7rem;
+  font-weight: 850;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.activity-item small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: none;
+}
+
+.admin-user-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(214, 184, 112, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
+    #111111;
+}
+
+.admin-user-card strong,
+.admin-user-card span,
+.admin-user-card p {
+  display: block;
+}
+
+.admin-user-card strong {
+  color: white;
+}
+
+.admin-user-card span {
+  margin-top: 4px;
+  color: var(--gold);
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.admin-user-card p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.admin-user-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.health-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px;
+  border: 1px solid rgba(214, 184, 112, 0.2);
+  border-radius: 8px;
+  background: #0b0b0b;
+}
+
+.health-head strong {
+  display: block;
+  color: white;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.25rem;
+}
+
+.health-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.health-card {
+  padding: 13px;
+  border: 1px solid rgba(214, 184, 112, 0.18);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.26);
+}
+
+.health-card.ok {
+  border-color: rgba(118, 202, 149, 0.34);
+}
+
+.health-card.warn {
+  border-color: rgba(214, 184, 112, 0.34);
+}
+
+.health-card span {
+  display: block;
+  color: var(--gold);
+  font-size: 0.7rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.health-card strong {
+  display: block;
+  margin-top: 4px;
+  color: white;
+}
+
+.health-card p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.stat-card {
+  padding: 14px;
+  border: 1px solid rgba(214, 184, 112, 0.2);
+  border-radius: 8px;
+  background: #0b0b0b;
+}
+
+.stat-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.stat-card strong {
+  display: block;
+  margin-top: 4px;
+  color: white;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.8rem;
+}
+
+.booking-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-booking {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(214, 184, 112, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.015)),
+    #111111;
+}
+
+.booking-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.booking-head h3 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.35rem;
+}
+
+.booking-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.booking-meta div,
+.backend-records div {
+  padding: 10px;
+  border: 1px solid rgba(214, 184, 112, 0.14);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.booking-meta span,
+.backend-records span,
+.booking-controls label span {
+  display: block;
+  color: var(--gold);
+  font-size: 0.7rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.booking-meta strong,
+.booking-meta p,
+.backend-records strong,
+.backend-records p {
+  display: block;
+  margin: 4px 0 0;
+  color: white;
+}
+
+.backend-records {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(214, 184, 112, 0.18);
+  border-radius: 8px;
+  background: rgba(214, 184, 112, 0.055);
+}
+
+.backend-records p {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.74rem;
+  overflow-wrap: anywhere;
+}
+
+.booking-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.booking-controls textarea {
+  min-height: 92px;
+}
+
+.status-pill {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border: 1px solid rgba(244, 217, 140, 0.4);
+  border-radius: 999px;
+  color: var(--gold-bright);
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+@media (min-width: 760px) {
+  .admin-hero {
+    grid-template-columns: 360px 1fr;
+    align-items: end;
+  }
+
+  .admin-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .health-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-user-form {
+    grid-template-columns: 1.4fr 1.2fr 0.9fr 0.6fr auto;
+    align-items: end;
+  }
+
+  .admin-user-card {
+    grid-template-columns: 1fr 2fr;
+    align-items: end;
+  }
+
+  .admin-user-controls {
+    grid-template-columns: 0.8fr 0.6fr 1.2fr auto;
+    align-items: end;
+  }
+
+  .booking-meta {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .backend-records {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .booking-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: end;
+  }
+
+  .booking-controls label:last-of-type {
+    grid-column: span 3;
+  }
+}

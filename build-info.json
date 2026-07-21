@@ -1,0 +1,17 @@
+{
+  "app": "Legendary Auto Spa",
+  "build_label": "live-backend-admin-setup",
+  "updated_at": "2026-07-21T02:08:00-04:00",
+  "requires": [
+    "index.html",
+    "app.js",
+    "setup-admin.html",
+    "setup-admin.js",
+    "admin.html",
+    "admin.js",
+    "deployment-check.html",
+    "deployment-check.js",
+    "netlify.toml",
+    "netlify/functions"
+  ]
+}
