@@ -947,6 +947,16 @@ textarea:focus {
   color: var(--gold-bright);
 }
 
+.primary-button:disabled,
+.secondary-button:disabled,
+.ghost-button:disabled {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #2a2a2a;
+  color: rgba(255, 255, 255, 0.38);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .ghost-button {
   padding: 0 14px;
   border: 1px solid rgba(214, 184, 112, 0.3);

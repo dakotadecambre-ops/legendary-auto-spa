@@ -5,6 +5,7 @@ const rebookSummary = document.querySelector("#rebookSummary");
 const rebookStatus = document.querySelector("#rebookStatus");
 const confirmRebookButton = document.querySelector("#confirmRebookButton");
 const editRequestButton = document.querySelector("#editRequestButton");
+const rebookLiabilityAcceptance = document.querySelector("#rebookLiabilityAcceptance");
 
 function pendingRequest() {
   try {
@@ -57,11 +58,20 @@ function readRequests() {
 async function confirmRebook() {
   const request = pendingRequest();
   if (!request) return;
+  if (!rebookLiabilityAcceptance.checked) {
+    rebookStatus.textContent = "Read and accept the disclosure terms before confirming the request.";
+    rebookLiabilityAcceptance.focus();
+    return;
+  }
 
   confirmRebookButton.disabled = true;
   rebookStatus.textContent = "Submitting request...";
+  const acceptedAt = new Date().toISOString();
   const nextRequest = {
     ...request,
+    liabilityAccepted: "Yes",
+    liabilityAcceptedAt: acceptedAt,
+    notes: [request.notes, `Disclosure accepted: Yes (${acceptedAt})`].filter(Boolean).join("\n\n"),
     createdAt: new Date().toISOString()
   };
 
@@ -97,4 +107,7 @@ function escapeHtml(value) {
 
 confirmRebookButton.addEventListener("click", confirmRebook);
 editRequestButton.addEventListener("click", editRequest);
+rebookLiabilityAcceptance.addEventListener("change", () => {
+  confirmRebookButton.disabled = !rebookLiabilityAcceptance.checked || !pendingRequest();
+});
 renderRequest();

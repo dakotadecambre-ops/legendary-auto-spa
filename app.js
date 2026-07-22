@@ -647,6 +647,10 @@ function setRequestStatus(message) {
   finalStatus.textContent = message;
 }
 
+function updateFinalSubmitState() {
+  finalSubmitButton.disabled = !liabilityAcceptance.checked;
+}
+
 function applyRequestPrefill(request) {
   if (!request) return;
   const fields = ["name", "phone", "email", "year", "make", "model", "address", "date", "secondaryDate", "notes"];
@@ -912,6 +916,7 @@ async function submitRequest() {
 }
 
 finalSubmitButton.addEventListener("click", submitRequest);
+liabilityAcceptance.addEventListener("change", updateFinalSubmitState);
 
 authorizePaymentButton.addEventListener("click", async () => {
   if (!stripeInstance || !stripeElements) {
@@ -1034,6 +1039,7 @@ updateTierSelection();
 updateFocusSelection();
 updatePaymentSelection();
 refreshCustomTimeFields();
+updateFinalSubmitState();
 goToStep(0);
 renderRequests();
 renderMemberHeader();

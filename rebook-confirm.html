@@ -29,9 +29,13 @@
         <div id="rebookSummary" class="receipt-grid">
           <p class="empty-state">Loading request...</p>
         </div>
+        <label class="checkbox-label customer-checkbox disclosure-checkbox">
+          <input id="rebookLiabilityAcceptance" type="checkbox" required>
+          <span>I have read and accept all warranties, limitations, and release of liability terms in the <a href="disclosures.html" target="_blank" rel="noopener">disclosure page</a>.</span>
+        </label>
         <div class="wizard-controls">
           <button class="secondary-button" id="editRequestButton" type="button">Edit first</button>
-          <button class="primary-button" id="confirmRebookButton" type="button">Confirm request</button>
+          <button class="primary-button" id="confirmRebookButton" type="button" disabled>Confirm request</button>
         </div>
         <p class="form-status" id="rebookStatus" role="status"></p>
       </section>
