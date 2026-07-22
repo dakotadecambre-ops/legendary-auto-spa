@@ -52,6 +52,12 @@ const saveVehicleCheckbox = document.querySelector("#saveVehicleCheckbox");
 const recurringCheckbox = document.querySelector("#recurringCheckbox");
 const recurringFrequencyField = document.querySelector("#recurringFrequencyField");
 const memberMenu = document.querySelector("#memberMenu");
+const memberBookingPanel = document.querySelector("#memberBookingPanel");
+const memberBookingName = document.querySelector("#memberBookingName");
+const savedVehicleField = document.querySelector("#savedVehicleField");
+const savedVehicleSelect = document.querySelector("#savedVehicleSelect");
+const savedLocationField = document.querySelector("#savedLocationField");
+const savedLocationSelect = document.querySelector("#savedLocationSelect");
 const preferredTimeSelect = document.querySelector("#preferredTimeSelect");
 const secondaryTimeSelect = document.querySelector("#secondaryTimeSelect");
 const customTimeField = document.querySelector("#customTimeField");
@@ -78,6 +84,10 @@ const vehicleTypeLabels = {
   suvs: "SUV / Crossover",
   trucks: "Truck / Large SUV"
 };
+
+const vehicleLabelToType = Object.fromEntries(
+  Object.entries(vehicleTypeLabels).map(([value, label]) => [label.toLowerCase(), value])
+);
 
 function goToStep(step) {
   currentStep = Math.max(0, Math.min(step, bookingSteps.length - 1));
@@ -114,8 +124,15 @@ function getSelectedVehicleType() {
   return selectedClass?.value || vehicleSizeSelect.value || "cars";
 }
 
+function normalizeVehicleSize(value) {
+  const normalized = String(value || "").trim();
+  if (vehicleTypeLabels[normalized]) return normalized;
+  return vehicleLabelToType[normalized.toLowerCase()] || "cars";
+}
+
 function getTierPrice(input, vehicleType) {
-  return input.dataset[priceDatasetKeys[vehicleType] || "priceCars"] || input.dataset.priceCars;
+  const sizeKey = normalizeVehicleSize(vehicleType);
+  return input.dataset[priceDatasetKeys[sizeKey] || "priceCars"] || input.dataset.priceCars;
 }
 
 function moneyValue(value) {
@@ -507,6 +524,122 @@ async function saveVehicleToMember(request) {
   }
 }
 
+function vehicleDisplayName(vehicle, fallback = "Saved vehicle") {
+  return [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ") || fallback;
+}
+
+function fillField(name, value, overwrite = false) {
+  const field = form.elements[name];
+  if (!field || value == null) return;
+  if (!overwrite && field.value) return;
+  field.value = value;
+}
+
+function applyContactFromMember(account, overwrite = false) {
+  if (!account) return;
+  fillField("name", account.name || "", overwrite);
+  fillField("phone", account.phone || activeMemberPhone(), overwrite);
+  fillField("email", account.email || "", overwrite);
+}
+
+function applySavedVehicle(vehicle, overwrite = true) {
+  if (!vehicle) return;
+  fillField("year", vehicle.year || "", overwrite);
+  fillField("make", vehicle.make || "", overwrite);
+  fillField("model", vehicle.model || "", overwrite);
+  syncVehicleClass(normalizeVehicleSize(vehicle.size));
+  if (vehicle.tier) selectTierByName(vehicle.tier);
+  if (saveVehicleCheckbox) saveVehicleCheckbox.checked = false;
+  setRequestStatus(`${vehicleDisplayName(vehicle)} selected from your saved vehicles.`);
+}
+
+function clearVehicleForNewEntry() {
+  ["year", "make", "model"].forEach((name) => {
+    if (form.elements[name]) form.elements[name].value = "";
+  });
+  syncVehicleClass("cars");
+  if (saveVehicleCheckbox) saveVehicleCheckbox.checked = true;
+  setRequestStatus("Enter the new vehicle details. It can be saved to your member account.");
+}
+
+function applySavedLocation(location, overwrite = true) {
+  if (!location) return;
+  fillField("address", location.address || "", overwrite);
+  const noteParts = [location.label, location.notes].filter(Boolean).join(" - ");
+  if (noteParts) fillField("notes", noteParts, false);
+  setRequestStatus(`${location.label || "Saved location"} added to this booking.`);
+}
+
+function defaultSavedItem(items = []) {
+  return items.find((item) => item.is_default) || items[0] || null;
+}
+
+function populateSavedVehicleSelect(vehicles = []) {
+  if (!savedVehicleField || !savedVehicleSelect) return;
+  savedVehicleField.classList.toggle("hidden", !vehicles.length);
+  if (!vehicles.length) return;
+
+  savedVehicleSelect.innerHTML = [
+    '<option value="">Select saved vehicle</option>',
+    ...vehicles.map((vehicle, index) => `<option value="${index}">${escapeHtml(vehicleDisplayName(vehicle, `Vehicle ${index + 1}`))} - ${escapeHtml(vehicleTypeLabels[normalizeVehicleSize(vehicle.size)] || "Vehicle")}</option>`),
+    '<option value="new">Add a new vehicle</option>'
+  ].join("");
+}
+
+function populateSavedLocationSelect(locations = []) {
+  if (!savedLocationField || !savedLocationSelect) return;
+  savedLocationField.classList.toggle("hidden", !locations.length);
+  if (!locations.length) return;
+
+  savedLocationSelect.innerHTML = [
+    '<option value="">Select saved location</option>',
+    ...locations.map((location, index) => `<option value="${index}">${escapeHtml(location.label || `Location ${index + 1}`)} - ${escapeHtml(location.address || "")}</option>`)
+  ].join("");
+}
+
+function applyMemberBookingPrefill(account, options = {}) {
+  if (!account) return;
+  const vehicles = account.vehicles || [];
+  const locations = account.locations || [];
+
+  if (memberBookingPanel) memberBookingPanel.classList.remove("hidden");
+  if (memberBookingName) memberBookingName.textContent = account.name || formatPhone(account.phone || activeMemberPhone()) || "Member account";
+
+  applyContactFromMember(account, options.overwrite);
+  populateSavedVehicleSelect(vehicles);
+  populateSavedLocationSelect(locations);
+
+  const defaultVehicle = defaultSavedItem(vehicles);
+  const defaultLocation = defaultSavedItem(locations);
+
+  if (defaultVehicle && !form.elements.make.value && !form.elements.model.value) {
+    applySavedVehicle(defaultVehicle, false);
+    savedVehicleSelect.value = String(vehicles.indexOf(defaultVehicle));
+  }
+  if (defaultLocation && !form.elements.address.value) {
+    applySavedLocation(defaultLocation, false);
+    savedLocationSelect.value = String(locations.indexOf(defaultLocation));
+  }
+}
+
+async function refreshMemberBookingProfile() {
+  const account = activeMember();
+  if (account) applyMemberBookingPrefill(account);
+  if (!localStorage.getItem(MEMBER_TOKEN_KEY)) return;
+
+  try {
+    const data = await memberApi("member-profile");
+    if (data.member) {
+      localStorage.setItem(MEMBER_PROFILE_KEY, JSON.stringify(data.member));
+      if (data.member.phone) saveMemberAccount(data.member.phone, data.member);
+      applyMemberBookingPrefill(data.member);
+      renderMemberHeader();
+    }
+  } catch {
+    if (account) setRequestStatus("Using saved member details from this device.");
+  }
+}
+
 function renderMemberHeader() {
   const phone = activeMemberPhone();
   const account = activeMember();
@@ -618,6 +751,13 @@ function formatDisplayDate(value) {
       hour: "numeric",
       minute: "2-digit"
     });
+}
+
+function formatPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  const local = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+  if (local.length !== 10) return value || "";
+  return `(${local.slice(0, 3)}) ${local.slice(3, 6)}-${local.slice(6)}`;
 }
 
 function escapeHtml(value) {
@@ -1029,6 +1169,24 @@ locateButton.addEventListener("click", () => {
   );
 });
 
+savedVehicleSelect?.addEventListener("change", () => {
+  const account = activeMember();
+  if (!account) return;
+  if (savedVehicleSelect.value === "new") {
+    clearVehicleForNewEntry();
+    return;
+  }
+  const vehicle = (account.vehicles || [])[Number(savedVehicleSelect.value)];
+  if (vehicle) applySavedVehicle(vehicle);
+});
+
+savedLocationSelect?.addEventListener("change", () => {
+  const account = activeMember();
+  if (!account) return;
+  const location = (account.locations || [])[Number(savedLocationSelect.value)];
+  if (location) applySavedLocation(location);
+});
+
 form.querySelectorAll("input[name='addOns']").forEach((input) => {
   input.addEventListener("change", updateTierSelection);
 });
@@ -1103,4 +1261,5 @@ updateFinalSubmitState();
 goToStep(0);
 renderRequests();
 renderMemberHeader();
+refreshMemberBookingProfile();
 applyPendingRebook();

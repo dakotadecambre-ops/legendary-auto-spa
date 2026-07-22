@@ -821,6 +821,35 @@ textarea:focus {
   margin-top: 14px;
 }
 
+.member-booking-panel {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid rgba(214, 184, 112, 0.22);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(214, 184, 112, 0.12), rgba(0, 0, 0, 0.28));
+}
+
+.member-booking-panel span {
+  color: var(--gold);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.member-booking-panel strong {
+  display: block;
+  color: var(--cream);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.12rem;
+}
+
+.member-booking-panel p {
+  margin: 0;
+  color: var(--muted);
+}
+
 .additional-vehicles-list {
   display: grid;
   gap: 10px;

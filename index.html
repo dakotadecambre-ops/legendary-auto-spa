@@ -235,13 +235,21 @@
               <input id="focusGoalInput" name="focusGoal" type="hidden" value="Cabin cleanup, vacuuming, surfaces, windows, trash removal, and an air freshener.">
               <input id="recommendedTierInput" name="recommendedTier" type="hidden" value="Interior Detail">
               <input id="formStartedAtInput" name="formStartedAt" type="hidden">
-              <label class="bot-field" aria-hidden="true" tabindex="-1">
-                Company
-                <input name="company" type="text" autocomplete="off" tabindex="-1">
-              </label>
+	              <label class="bot-field" aria-hidden="true" tabindex="-1">
+	                Company
+	                <input name="company" type="text" autocomplete="off" tabindex="-1">
+	              </label>
 
-              <fieldset>
-                <legend>Contact</legend>
+	              <aside class="member-booking-panel hidden" id="memberBookingPanel">
+	                <div>
+	                  <span>Signed in</span>
+	                  <strong id="memberBookingName">Member account</strong>
+	                </div>
+	                <p>Saved account details are ready for faster booking.</p>
+	              </aside>
+
+	              <fieldset>
+	                <legend>Contact</legend>
                 <div class="grid-two">
                   <label>
                     Name
@@ -258,11 +266,17 @@
                 </label>
               </fieldset>
 
-              <fieldset>
-                <legend>Vehicle</legend>
-                <div class="grid-two">
-                  <label>
-                    Year
+	              <fieldset>
+	                <legend>Vehicle</legend>
+	                <label class="hidden" id="savedVehicleField">
+	                  Saved vehicle
+	                  <select id="savedVehicleSelect">
+	                    <option value="">Select saved vehicle</option>
+	                  </select>
+	                </label>
+	                <div class="grid-two">
+	                  <label>
+	                    Year
                     <input name="year" type="number" inputmode="numeric" min="1950" max="2035" placeholder="2022">
                   </label>
                   <label>
@@ -299,10 +313,16 @@
                 </label>
               </fieldset>
 
-              <fieldset>
-                <legend>Location and timing</legend>
-                <label>
-                  Service address
+	              <fieldset>
+	                <legend>Location and timing</legend>
+	                <label class="hidden" id="savedLocationField">
+	                  Saved location
+	                  <select id="savedLocationSelect">
+	                    <option value="">Select saved location</option>
+	                  </select>
+	                </label>
+	                <label>
+	                  Service address
                   <div class="location-row">
                     <input name="address" id="addressInput" type="text" autocomplete="street-address" required placeholder="Street, city, state">
                     <button class="ghost-button" id="locateButton" type="button">Use GPS</button>
