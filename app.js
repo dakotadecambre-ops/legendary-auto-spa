@@ -55,6 +55,7 @@ const preferredTimeSelect = document.querySelector("#preferredTimeSelect");
 const secondaryTimeSelect = document.querySelector("#secondaryTimeSelect");
 const customTimeField = document.querySelector("#customTimeField");
 const secondaryCustomTimeField = document.querySelector("#secondaryCustomTimeField");
+const liabilityAcceptance = document.querySelector("#liabilityAcceptance");
 
 let deferredInstallPrompt = null;
 let currentStep = 0;
@@ -368,7 +369,10 @@ function getRequestData() {
   const recurringNote = data.recurring
     ? `Recurring service: ${data.recurringFrequency || "Frequency not selected"}`
     : "";
-  const combinedNotes = [data.notes, timingNote, vehicleNote, recurringNote].filter(Boolean).join("\n\n");
+  const liabilityNote = data.liabilityAcceptance
+    ? `Disclosure accepted: Yes (${new Date().toISOString()})`
+    : "";
+  const combinedNotes = [data.notes, timingNote, vehicleNote, recurringNote, liabilityNote].filter(Boolean).join("\n\n");
   return {
     ...data,
     addOns: formData.getAll("addOns").join(", "),
@@ -379,6 +383,8 @@ function getRequestData() {
     time: preferredTime,
     secondaryTime,
     secondaryDate: data.secondaryDate || "",
+    liabilityAccepted: data.liabilityAcceptance ? "Yes" : "No",
+    liabilityAcceptedAt: data.liabilityAcceptance ? new Date().toISOString() : "",
     size: vehicleTypeLabels[tier.vehicleType] || data.size,
     tier: tier.name,
     startingPrice: tier.startingPrice,
@@ -503,7 +509,15 @@ function renderMemberHeader() {
   const account = activeMember();
   if (!memberMenu) return;
   if (!phone || !account) {
-    memberMenu.innerHTML = '<a class="member-link" href="member.html">Member sign-in</a>';
+    memberMenu.innerHTML = `
+      <details class="member-dropdown">
+        <summary class="member-link">Account</summary>
+        <div class="member-dropdown-menu">
+          <a href="member.html">Member sign-in</a>
+          <a href="disclosures.html">Disclosures</a>
+        </div>
+      </details>
+    `;
     return;
   }
 
@@ -514,6 +528,7 @@ function renderMemberHeader() {
       <div class="member-dropdown-menu">
         <a href="member-portal.html">Member portal</a>
         <a href="member-settings.html">Settings</a>
+        <a href="disclosures.html">Disclosures</a>
         <button type="button" id="memberHeaderLogout">Log out</button>
       </div>
     </details>
@@ -851,6 +866,12 @@ async function submitRequest() {
   if (recurringCheckbox.checked && !form.elements.recurringFrequency.value) {
     goToStep(2);
     setRequestStatus("Select how often you want the recurring wash.");
+    return;
+  }
+  if (!liabilityAcceptance.checked) {
+    goToStep(3);
+    setRequestStatus("Read and accept the disclosure terms before sending the request.");
+    liabilityAcceptance.focus();
     return;
   }
   const request = getRequestData();

@@ -29,7 +29,13 @@
         <span class="install-mark" aria-hidden="true">+</span>
       </button>
       <div class="member-menu" id="memberMenu">
-        <a class="member-link" id="memberSignInLink" href="member.html">Member sign-in</a>
+        <details class="member-dropdown">
+          <summary class="member-link">Account</summary>
+          <div class="member-dropdown-menu">
+            <a id="memberSignInLink" href="member.html">Member sign-in</a>
+            <a href="disclosures.html">Disclosures</a>
+          </div>
+        </details>
       </div>
     </header>
 
@@ -480,6 +486,11 @@
                 <strong id="summaryPayment">Request now</strong>
               </div>
             </aside>
+
+            <label class="checkbox-label customer-checkbox disclosure-checkbox">
+              <input id="liabilityAcceptance" name="liabilityAcceptance" type="checkbox" required>
+              <span>I have read and accept all warranties, limitations, and release of liability terms in the <a href="disclosures.html" target="_blank" rel="noopener">disclosure page</a>.</span>
+            </label>
 
             <div class="wizard-controls">
               <button class="secondary-button" type="button" data-back>Back</button>

@@ -1,4 +1,5 @@
 const ADMIN_TOKEN_KEY = "legendary.admin.token";
+const ADMIN_SEEN_BOOKINGS_KEY = "legendary.admin.seenBookingIds";
 const loginPanel = document.querySelector("#loginPanel");
 const dashboardPanel = document.querySelector("#dashboardPanel");
 const adminLoginForm = document.querySelector("#adminLoginForm");
@@ -95,6 +96,18 @@ function clearAdminSession(message = "Admin session expired. Log in again.") {
   setLoggedIn(false);
   adminPassword.value = "";
   adminStatus.textContent = message;
+}
+
+function readSeenBookingIds() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(ADMIN_SEEN_BOOKINGS_KEY)) || []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSeenBookingIds(ids) {
+  localStorage.setItem(ADMIN_SEEN_BOOKINGS_KEY, JSON.stringify([...ids].slice(0, 300)));
 }
 
 async function api(path, options = {}) {
@@ -208,22 +221,41 @@ async function requestAdminNotificationPermission() {
   }
 
   const permission = await Notification.requestPermission();
+  if (permission === "granted") {
+    new Notification("Legendary Auto Spa alerts enabled", {
+      body: "Leave this admin dashboard open to receive new request alerts.",
+      icon: "assets/icon.svg",
+      tag: "legendary-alerts-enabled"
+    });
+  }
   adminActionStatus.textContent = permission === "granted"
-    ? "Admin browser alerts are enabled while this dashboard is open."
+    ? "Admin browser alerts are enabled. New requests are checked about every 10 seconds while this dashboard is open."
     : "Admin browser alerts were not enabled.";
 }
 
 function notifyNewBookings(bookings) {
   const ids = new Set(bookings.map((booking) => booking.id).filter(Boolean));
   if (!bookingsLoadedOnce) {
-    seenBookingIds = ids;
+    const savedSeen = readSeenBookingIds();
+    seenBookingIds = savedSeen.size ? new Set([...savedSeen, ...ids]) : ids;
+    saveSeenBookingIds(seenBookingIds);
     bookingsLoadedOnce = true;
     return;
   }
 
   const newBookings = bookings.filter((booking) => booking.id && !seenBookingIds.has(booking.id));
   seenBookingIds = ids;
-  if (!newBookings.length || !("Notification" in window) || Notification.permission !== "granted") return;
+  saveSeenBookingIds(seenBookingIds);
+  if (!newBookings.length) return;
+
+  const latest = newBookings[0];
+  adminActionStatus.textContent = `${newBookings.length} new request${newBookings.length === 1 ? "" : "s"} received. Latest: ${latest.customer_name || "Customer"} for ${latest.service_tier || "a detail"}.`;
+  document.title = `(${newBookings.length}) Legendary Admin`;
+  window.setTimeout(() => {
+    document.title = "Legendary Admin";
+  }, 15000);
+
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
 
   newBookings.forEach((booking) => {
     new Notification("New Legendary Auto Spa request", {
@@ -239,7 +271,7 @@ function startBookingPolling() {
   bookingPollTimer = window.setInterval(() => {
     if (dashboardPanel.classList.contains("hidden")) return;
     loadBookings();
-  }, 45000);
+  }, 10000);
 }
 
 function renderFilteredBookings() {
