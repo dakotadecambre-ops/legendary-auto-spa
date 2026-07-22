@@ -837,7 +837,7 @@ async function authorizeSquarePayment(paymentMethod = squareCard) {
 }
 
 function currentTotalAmountCents() {
-  const total = moneyValue(getDisplayTotalPrice());
+  const total = priceSummary().total;
   return Math.max(1, Math.round(total * 100));
 }
 
