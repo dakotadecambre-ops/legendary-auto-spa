@@ -53,6 +53,7 @@ function buildFallbackReceipt(event, booking) {
     receipt_id: `LAS-${reference || event.id}`,
     booking_id: event.booking_id,
     square_payment_id: details.square_payment_id || booking.payment_intent_id || "",
+    square_receipt_url: details.square_receipt_url || "",
     square_status: details.square_status || "",
     customer_name: booking.customer_name || "",
     phone: booking.phone || "",

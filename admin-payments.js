@@ -64,6 +64,7 @@ function renderPayments(payments) {
         ${formatDate(payment.captured_at)}
         <small>${escapeHtml(payment.captured_by || "")}</small>
         <a class="inline-admin-link" href="capture-success.html?booking_id=${encodeURIComponent(payment.booking_id || "")}&event_id=${encodeURIComponent(payment.id || "")}">Receipt</a>
+        ${payment.square_receipt_url ? `<a class="inline-admin-link" href="${escapeAttribute(payment.square_receipt_url)}" target="_blank" rel="noreferrer">Square</a>` : ""}
       </span>
     </article>
   `).join("");
@@ -86,6 +87,10 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value).replaceAll("'", "&#39;");
 }
 
 toggleIncomeButton.addEventListener("click", () => {

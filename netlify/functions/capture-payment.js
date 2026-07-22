@@ -115,6 +115,7 @@ function buildReceipt(booking, squarePayment, admin) {
     receipt_id: `LAS-${reference || Date.now()}`,
     booking_id: booking.id,
     square_payment_id: squarePayment.id,
+    square_receipt_url: squarePayment.receipt_url || "",
     square_status: squarePayment.status,
     customer_name: booking.customer_name || "",
     phone: booking.phone || "",
@@ -150,6 +151,7 @@ function createReceiptPdfBase64(receipt) {
     `Address: ${receipt.service_address}`,
     `Schedule: ${[receipt.preferred_date, receipt.preferred_time].filter(Boolean).join(" ")}`,
     `Square Payment: ${receipt.square_payment_id}`,
+    `Square Receipt: ${receipt.square_receipt_url || "Not provided"}`,
     `Captured by: ${receipt.captured_by}`
   ];
 

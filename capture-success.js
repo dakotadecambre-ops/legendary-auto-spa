@@ -82,6 +82,7 @@ function renderReceipt(receipt) {
       ${receiptLine("Address", receipt.service_address)}
       ${receiptLine("Schedule", [receipt.preferred_date, receipt.preferred_time].filter(Boolean).join(" "))}
       ${receiptLine("Square Payment", receipt.square_payment_id)}
+      ${receiptLinkLine("Square Receipt", receipt.square_receipt_url)}
       ${receiptLine("Square Status", receipt.square_status)}
     </div>
   `;
@@ -92,6 +93,16 @@ function receiptLine(label, value) {
     <div>
       <span>${escapeHtml(label)}</span>
       <strong>${escapeHtml(value || "Not recorded")}</strong>
+    </div>
+  `;
+}
+
+function receiptLinkLine(label, value) {
+  if (!value) return receiptLine(label, "");
+  return `
+    <div>
+      <span>${escapeHtml(label)}</span>
+      <strong><a class="inline-admin-link" href="${escapeAttribute(value)}" target="_blank" rel="noreferrer">Open Square receipt</a></strong>
     </div>
   `;
 }
@@ -113,6 +124,10 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value).replaceAll("'", "&#39;");
 }
 
 printReceiptButton.addEventListener("click", () => window.print());

@@ -55,6 +55,7 @@ function normalizePayment(event) {
     captured_at: receipt.captured_at || event.created_at,
     captured_by: receipt.captured_by || event.created_by || "",
     square_payment_id: receipt.square_payment_id || details.square_payment_id || booking.payment_intent_id || "",
+    square_receipt_url: receipt.square_receipt_url || details.square_receipt_url || "",
     receipt_id: receipt.receipt_id || "",
     receipt
   };
