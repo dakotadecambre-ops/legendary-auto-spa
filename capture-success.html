@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#080808">
+    <title>Payment Captured</title>
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="admin.css">
+  </head>
+  <body>
+    <header class="app-header no-print" aria-label="Legendary Auto Spa payment receipt">
+      <div class="brand-lockup">
+        <img class="brand-mark-image" src="assets/icon.svg" alt="" aria-hidden="true">
+        <div>
+          <p class="eyebrow">Payment Captured</p>
+          <h1>Legendary Auto Spa</h1>
+        </div>
+      </div>
+      <a class="admin-link" href="admin.html">Admin</a>
+    </header>
+
+    <main class="admin-main receipt-main">
+      <section class="capture-success-card no-print">
+        <div class="success-check">✓</div>
+        <div>
+          <p class="eyebrow">Capture Complete</p>
+          <h2>Payment captured successfully.</h2>
+          <p>The receipt below is stored in Supabase through the payment capture event.</p>
+        </div>
+      </section>
+
+      <section class="receipt-actions no-print">
+        <button class="primary-button" id="downloadPdfButton" type="button">Download PDF</button>
+        <button class="primary-button" id="printReceiptButton" type="button">Print / Save PDF</button>
+        <a class="secondary-button link-button" href="admin-payments.html">Payments</a>
+        <a class="secondary-button link-button" href="admin.html">Back to admin</a>
+      </section>
+
+      <section class="receipt-document" id="receiptDocument">
+        <p class="empty-state">Loading receipt...</p>
+      </section>
+    </main>
+
+    <script src="capture-success.js"></script>
+  </body>
+</html>

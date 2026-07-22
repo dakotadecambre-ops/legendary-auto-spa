@@ -55,6 +55,16 @@
   to = "/disclosures.html"
   status = 200
 
+[[redirects]]
+  from = "/admin-payments"
+  to = "/admin-payments.html"
+  status = 200
+
+[[redirects]]
+  from = "/capture-success"
+  to = "/capture-success.html"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]
@@ -134,5 +144,25 @@
 
 [[headers]]
   for = "/disclosures.html"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/admin-payments.html"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/admin-payments.js"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/capture-success.html"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/capture-success.js"
   [headers.values]
     Cache-Control = "no-store"

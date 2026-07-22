@@ -358,10 +358,20 @@
 }
 
 .stat-card {
+  display: block;
+  width: 100%;
   padding: 14px;
   border: 1px solid rgba(214, 184, 112, 0.2);
   border-radius: 8px;
   background: #0b0b0b;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stat-card:hover {
+  border-color: rgba(244, 217, 140, 0.52);
+  transform: translateY(-1px);
 }
 
 .stat-card span {
@@ -383,6 +393,156 @@
 .booking-list {
   display: grid;
   gap: 12px;
+}
+
+.payments-total-card,
+.capture-success-card,
+.receipt-actions {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid rgba(214, 184, 112, 0.24);
+  border-radius: 8px;
+  background: #0b0b0b;
+}
+
+.payments-total-card span {
+  display: block;
+  color: var(--gold);
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.payments-total-card strong {
+  display: block;
+  margin-top: 3px;
+  color: white;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.8rem, 8vw, 3rem);
+}
+
+.payment-row .inline-admin-link {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--gold-bright);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(244, 217, 140, 0.48);
+}
+
+.success-check {
+  flex: 0 0 auto;
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border-radius: 999px;
+  background: #76ca95;
+  color: #061108;
+  font-size: 2rem;
+  font-weight: 950;
+}
+
+.capture-success-card h2 {
+  margin: 2px 0 0;
+  color: white;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.8rem, 6vw, 3rem);
+}
+
+.capture-success-card p:last-child {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.receipt-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.receipt-document {
+  margin: 18px auto;
+  padding: 22px;
+  border: 1px solid rgba(214, 184, 112, 0.25);
+  border-radius: 8px;
+  background: #f7f3ea;
+  color: #111;
+}
+
+.receipt-brand {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 18px;
+  border-bottom: 2px solid #d6b870;
+}
+
+.receipt-brand img {
+  width: min(56vw, 310px);
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.18));
+}
+
+.receipt-brand p {
+  margin: 0;
+  color: #7c6224;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.receipt-brand h2 {
+  margin: 4px 0 0;
+  color: #111;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+  text-align: right;
+}
+
+.receipt-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.receipt-grid div {
+  padding: 12px;
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  border-radius: 8px;
+  background: #fffaf0;
+}
+
+.receipt-grid span {
+  display: block;
+  color: #7c6224;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.receipt-grid strong {
+  display: block;
+  margin-top: 5px;
+  color: #111;
+  word-break: break-word;
+}
+
+@media (max-width: 759px) {
+  .payments-total-card,
+  .capture-success-card,
+  .receipt-brand {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .receipt-brand p,
+  .receipt-brand h2 {
+    text-align: left;
+  }
 }
 
 .pending-heading {
@@ -567,7 +727,36 @@
     align-items: end;
   }
 
-  .booking-controls label:last-of-type {
-    grid-column: span 3;
+	  .booking-controls label:last-of-type {
+	    grid-column: span 3;
+	  }
+
+  .receipt-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+	}
+
+@media print {
+  body {
+    background: white;
+    color: #111;
+  }
+
+  .no-print,
+  .app-header {
+    display: none !important;
+  }
+
+  .admin-main,
+  .receipt-main {
+    max-width: none;
+    padding: 0;
+  }
+
+  .receipt-document {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
   }
 }

@@ -138,15 +138,18 @@
             </div>
           </div>
         </section>
-        <section class="activity-panel" aria-labelledby="activityTitle">
-          <div class="panel-heading">
+        <section class="activity-panel collapsed-panel" aria-labelledby="activityTitle">
+          <button class="panel-heading panel-toggle" type="button" data-toggle-panel="activityContent" aria-expanded="false">
             <div>
               <p class="eyebrow">Backend Activity</p>
               <h3 id="activityTitle">Activity Feed</h3>
             </div>
-          </div>
-          <div class="activity-list" id="activityFeed">
-            <p class="empty-state">Activity will load after login.</p>
+            <span>Open</span>
+          </button>
+          <div class="collapsible-content hidden" id="activityContent">
+            <div class="activity-list" id="activityFeed">
+              <p class="empty-state">Activity will load after login.</p>
+            </div>
           </div>
         </section>
         <div class="admin-stats" id="adminStats"></div>

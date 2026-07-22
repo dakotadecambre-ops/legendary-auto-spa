@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#080808">
+    <title>Legendary Payments</title>
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="admin.css">
+  </head>
+  <body>
+    <header class="app-header" aria-label="Legendary Auto Spa payments">
+      <div class="brand-lockup">
+        <img class="brand-mark-image" src="assets/icon.svg" alt="" aria-hidden="true">
+        <div>
+          <p class="eyebrow">Admin Dashboard</p>
+          <h1>Payments</h1>
+        </div>
+      </div>
+      <a class="admin-link" href="admin.html">Back to admin</a>
+    </header>
+
+    <main class="admin-main">
+      <section class="admin-panel">
+        <div class="admin-toolbar">
+          <div>
+            <p class="eyebrow">Captured Payments</p>
+            <h2>Payment history</h2>
+          </div>
+          <button class="secondary-button" id="refreshPaymentsButton" type="button">Refresh</button>
+        </div>
+
+        <section class="payments-total-card" aria-live="polite">
+          <div>
+            <span>Total income</span>
+            <strong id="paymentsTotal">$0.00</strong>
+          </div>
+          <button class="secondary-button compact-button" id="toggleIncomeButton" type="button">Hide</button>
+        </section>
+
+        <div class="activity-list payment-list" id="paymentsList">
+          <p class="empty-state">Payments will load here.</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="admin-payments.js"></script>
+  </body>
+</html>

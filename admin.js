@@ -30,7 +30,9 @@ const customerSearchStatus = document.querySelector("#customerSearchStatus");
 const scheduleQueue = document.querySelector("#scheduleQueue");
 const membersList = document.querySelector("#membersList");
 const panelToggles = [...document.querySelectorAll("[data-toggle-panel]")];
+const pendingHeading = document.querySelector(".pending-heading");
 const MEMBER_ACCOUNTS_KEY = "legendary-auto-spa.memberAccounts";
+const LAST_RECEIPT_KEY = "legendary.admin.lastReceipt";
 
 const statuses = ["new", "contacted", "scheduled", "in_progress", "complete", "canceled"];
 const paymentStatuses = ["not_started", "pending", "requires_capture", "succeeded", "canceled", "failed"];
@@ -201,16 +203,20 @@ adminUserForm.addEventListener("submit", async (event) => {
   adminUserActive.checked = true;
 });
 
-async function loadBookings() {
-  adminBookings.innerHTML = '<p class="empty-state">Loading bookings...</p>';
+async function loadBookings(options = {}) {
+  const scrollY = window.scrollY;
+  if (!options.silent) adminBookings.innerHTML = '<p class="empty-state">Loading bookings...</p>';
   try {
     const data = await api("admin-bookings");
     const nextBookings = data.bookings || [];
     notifyNewBookings(nextBookings);
     allBookings = nextBookings;
     renderFilteredBookings();
+    if (options.preserveScroll) {
+      window.requestAnimationFrame(() => window.scrollTo({ top: scrollY, left: 0, behavior: "auto" }));
+    }
   } catch (error) {
-    adminBookings.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+    if (!options.silent) adminBookings.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
   }
 }
 
@@ -270,7 +276,7 @@ function startBookingPolling() {
   if (bookingPollTimer) return;
   bookingPollTimer = window.setInterval(() => {
     if (dashboardPanel.classList.contains("hidden")) return;
-    loadBookings();
+    loadBookings({ silent: true, preserveScroll: true });
   }, 10000);
 }
 
@@ -300,7 +306,9 @@ function bookingMatchesQuery(booking, query) {
     booking.vehicle_model,
     booking.vehicle_size,
     booking.service_address,
-    booking.service_tier
+    booking.service_tier,
+    booking.status,
+    booking.payment_status
   ].some((value) => String(value || "").toLowerCase().includes(query));
 }
 
@@ -325,10 +333,12 @@ function renderScheduleQueue(bookings) {
   }
 
   const canUpdateBookings = hasAdminRole(["admin", "manager"]);
+  const canCapturePayment = hasAdminRole(["admin"]);
   scheduleQueue.innerHTML = scheduled.map((booking) => {
     const recurring = recurringFrequency(booking);
+    const canCaptureThisPayment = canCapturePayment && booking.payment_intent_id && booking.payment_status !== "succeeded";
     return `
-    <article class="activity-item" data-id="${escapeAttribute(booking.id || "")}">
+    <article class="activity-item" data-id="${escapeAttribute(booking.id || "")}" data-payment-intent-id="${escapeAttribute(booking.payment_intent_id || "")}">
       <div>
         <strong>${escapeHtml(booking.customer_name || "Customer")}${recurring ? ` · ${escapeHtml(recurring)}` : ""}</strong>
         <p>${escapeHtml(booking.service_tier || "Detail request")} · ${escapeHtml(booking.preferred_date || "No date")} · ${escapeHtml(booking.preferred_time || "No time")}</p>
@@ -337,6 +347,7 @@ function renderScheduleQueue(bookings) {
       ${canUpdateBookings ? `
         <div class="queue-actions">
           <span class="status-pill">${escapeHtml(booking.status || "scheduled")}</span>
+          ${canCaptureThisPayment ? '<button class="secondary-button compact-button" type="button" data-capture>Capture</button>' : ""}
           <button class="secondary-button compact-button" type="button" data-decline>Decline</button>
         </div>
       ` : `<span>${escapeHtml(booking.status || "scheduled")}<small>${formatDate(booking.created_at)}</small></span>`}
@@ -346,6 +357,10 @@ function renderScheduleQueue(bookings) {
 
   scheduleQueue.querySelectorAll("[data-decline]").forEach((button) => {
     button.addEventListener("click", () => quickUpdateBooking(button.closest("[data-id]"), "canceled"));
+  });
+
+  scheduleQueue.querySelectorAll("[data-capture]").forEach((button) => {
+    button.addEventListener("click", () => capturePayment(button.closest("[data-id]")));
   });
 }
 
@@ -814,16 +829,41 @@ function renderStats(bookings) {
   const paymentPending = allBookings.filter((booking) => ["pending", "requires_capture"].includes(booking.payment_status)).length;
 
   adminStats.innerHTML = [
-    ["Pending", pending],
-    ["Accepted", scheduled],
-    ["Complete", completed],
-    ["Payment pending", paymentPending]
-  ].map(([label, value]) => `
-    <div class="stat-card">
+    ["Pending", pending, "pending"],
+    ["Accepted", scheduled, "accepted"],
+    ["Complete", completed, "complete"],
+    ["Payment pending", paymentPending, "payments"]
+  ].map(([label, value, target]) => `
+    <button class="stat-card" type="button" data-stat-target="${target}">
       <span>${label}</span>
       <strong>${value}</strong>
-    </div>
+    </button>
   `).join("");
+
+  adminStats.querySelectorAll("[data-stat-target]").forEach((button) => {
+    button.addEventListener("click", () => openStatTarget(button.dataset.statTarget));
+  });
+}
+
+function openStatTarget(target) {
+  if (target === "payments") {
+    window.location.href = "admin-payments.html";
+    return;
+  }
+  if (target === "accepted") {
+    scheduleQueue?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  if (target === "complete") {
+    customerSearchInput.value = "complete";
+    renderBookings(allBookings.filter((booking) => booking.status === "complete"));
+    customerSearchStatus.textContent = "Showing completed requests.";
+    adminBookings.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  customerSearchInput.value = "";
+  renderFilteredBookings();
+  pendingHeading?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function saveBooking(card) {
@@ -870,12 +910,13 @@ async function capturePayment(card) {
   const button = card.querySelector("[data-capture]");
   button.textContent = "Capturing...";
   try {
-    await api("capture-payment", {
+    const data = await api("capture-payment", {
       method: "POST",
       body: JSON.stringify({ id, payment_intent_id: paymentIntentId })
     });
     button.textContent = "Captured";
-    await loadBookings();
+    if (data.receipt) sessionStorage.setItem(LAST_RECEIPT_KEY, JSON.stringify(data.receipt));
+    window.location.href = `capture-success.html?booking_id=${encodeURIComponent(id)}`;
   } catch (error) {
     button.textContent = error.message;
   }
