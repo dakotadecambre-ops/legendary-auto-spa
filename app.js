@@ -465,7 +465,7 @@ function renderMemberHeader() {
     <details class="member-dropdown">
       <summary class="member-link">${escapeHtml(label)}</summary>
       <div class="member-dropdown-menu">
-        <a href="member.html#portal">Member portal</a>
+        <a href="member-portal.html">Member portal</a>
         <a href="member-settings.html">Settings</a>
         <button type="button" id="memberHeaderLogout">Log out</button>
       </div>

@@ -42,40 +42,6 @@
         </form>
         <p class="form-status" id="memberStatus" role="status"></p>
       </section>
-
-      <section class="admin-panel hidden" id="memberDashboard">
-        <div class="admin-toolbar">
-          <div>
-            <p class="eyebrow">Member Portal</p>
-            <h2 id="memberTitle">Member dashboard</h2>
-          </div>
-          <div class="admin-actions">
-            <a class="secondary-button link-button" href="index.html">Booking page</a>
-            <a class="secondary-button link-button" href="member-settings.html">Settings</a>
-            <button class="secondary-button" id="memberLogoutButton" type="button">Log out</button>
-          </div>
-        </div>
-
-        <div class="member-tabs" role="tablist" aria-label="Member account sections">
-          <button class="member-tab active" type="button" data-member-tab="vehicles">Saved vehicles</button>
-          <button class="member-tab" type="button" data-member-tab="requests">Recent requests</button>
-        </div>
-
-        <section class="member-tab-panel" id="memberVehiclesPanel">
-          <div id="memberVehicles" class="request-list"></div>
-          <div class="panel-heading saved-location-heading">
-            <div>
-              <p class="eyebrow">Locations</p>
-              <h3>Saved locations</h3>
-            </div>
-          </div>
-          <div id="memberLocations" class="request-list"></div>
-        </section>
-
-        <section class="member-tab-panel hidden" id="memberRequestsPanel">
-          <div id="memberRequests" class="request-list"></div>
-        </section>
-      </section>
     </main>
 
     <script src="member.js"></script>

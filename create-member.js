@@ -63,7 +63,7 @@ createMemberForm.addEventListener("submit", async (event) => {
     saveMemberSession(data);
     createMemberStatus.textContent = "Account created. Opening your member portal...";
     window.setTimeout(() => {
-      window.location.href = "member.html#portal";
+      window.location.href = "member-portal.html";
     }, 700);
   } catch (error) {
     createMemberStatus.textContent = error.message;

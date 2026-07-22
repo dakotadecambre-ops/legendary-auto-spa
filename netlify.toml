@@ -26,6 +26,11 @@
   status = 200
 
 [[redirects]]
+  from = "/member-portal"
+  to = "/member-portal.html"
+  status = 200
+
+[[redirects]]
   from = "/create-member"
   to = "/create-member.html"
   status = 200
@@ -89,6 +94,16 @@
 
 [[headers]]
   for = "/member.html"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/member-portal.html"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/member-portal.js"
   [headers.values]
     Cache-Control = "no-store"
 

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#080808">
+    <title>Member Portal | Legendary Auto Spa</title>
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="app-header" aria-label="Legendary Auto Spa member portal">
+      <div class="brand-lockup">
+        <img class="brand-mark-image" src="assets/icon.svg" alt="" aria-hidden="true">
+        <div>
+          <p class="eyebrow">Member Portal</p>
+          <h1>Legendary Auto Spa</h1>
+        </div>
+      </div>
+      <a class="member-link" href="index.html">Book wash</a>
+    </header>
+
+    <main class="member-main">
+      <section class="admin-panel" id="memberDashboard">
+        <div class="admin-toolbar">
+          <div>
+            <p class="eyebrow">Member Portal</p>
+            <h2 id="memberTitle">Member dashboard</h2>
+          </div>
+          <div class="admin-actions">
+            <a class="secondary-button link-button" href="index.html">Booking page</a>
+            <a class="secondary-button link-button" href="member-settings.html">Settings</a>
+            <button class="secondary-button" id="memberLogoutButton" type="button">Log out</button>
+          </div>
+        </div>
+
+        <div class="member-tabs" role="tablist" aria-label="Member account sections">
+          <button class="member-tab active" type="button" data-member-tab="vehicles">Saved vehicles</button>
+          <button class="member-tab" type="button" data-member-tab="requests">Recent requests</button>
+        </div>
+
+        <section class="member-tab-panel" id="memberVehiclesPanel">
+          <div id="memberVehicles" class="request-list"></div>
+          <div class="panel-heading saved-location-heading">
+            <div>
+              <p class="eyebrow">Locations</p>
+              <h3>Saved locations</h3>
+            </div>
+          </div>
+          <div id="memberLocations" class="request-list"></div>
+        </section>
+
+        <section class="member-tab-panel hidden" id="memberRequestsPanel">
+          <div id="memberRequests" class="request-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="member-portal.js"></script>
+  </body>
+</html>
