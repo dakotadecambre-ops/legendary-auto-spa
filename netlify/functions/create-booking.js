@@ -10,7 +10,7 @@ const {
   supabaseFetch,
   supabaseConfigured,
   setupErrorResponse,
-  createManualCapturePaymentIntent,
+  squareConfigured,
   sendNotifications,
   notificationConfigStatus,
   logBookingEvent
@@ -48,13 +48,10 @@ exports.handler = async (event) => {
     }
 
     const wantsPayment = /pre-authorize|apple pay|card/i.test(booking.payment_preference);
-    let paymentIntent = null;
-    const paymentSetupRequired = wantsPayment && !process.env.STRIPE_SECRET_KEY;
-
-    if (wantsPayment && process.env.STRIPE_SECRET_KEY) {
-      paymentIntent = await createManualCapturePaymentIntent(booking);
-      booking.payment_intent_id = paymentIntent.id;
-      booking.payment_status = paymentIntent.status === "requires_payment_method" ? "pending" : paymentIntent.status;
+    const paymentReady = squareConfigured() && process.env.SQUARE_APPLICATION_ID && process.env.SQUARE_LOCATION_ID;
+    const paymentSetupRequired = wantsPayment && !paymentReady;
+    if (wantsPayment && paymentReady) {
+      booking.payment_status = "pending";
     }
 
     const inserted = await supabaseFetch("bookings", {
@@ -73,6 +70,7 @@ exports.handler = async (event) => {
         focus_area: booking.focus_area,
         payment_preference: booking.payment_preference,
         payment_setup_required: paymentSetupRequired,
+        payment_provider: wantsPayment ? "square" : null,
         payment_intent_id: booking.payment_intent_id || null,
         ...relatedRecords
       }
@@ -82,9 +80,9 @@ exports.handler = async (event) => {
       await safeLogBookingEvent({
         booking_id: savedBooking.id,
         event_type: "payment_setup_required",
-        channel: "stripe",
+        channel: "square",
         status: "warning",
-        message: "Customer requested payment authorization, but STRIPE_SECRET_KEY is not configured."
+        message: "Customer requested payment authorization, but Square payment settings are not configured."
       });
     }
 
@@ -122,10 +120,10 @@ exports.handler = async (event) => {
       related_records: relatedRecords,
       notifications,
       payment_setup_required: paymentSetupRequired,
-      payment: paymentIntent ? {
-        payment_intent_id: paymentIntent.id,
-        client_secret: paymentIntent.client_secret,
-        status: paymentIntent.status
+      payment: wantsPayment && paymentReady ? {
+        provider: "square",
+        booking_id: savedBooking.id,
+        status: "pending"
       } : null
     });
   } catch (error) {

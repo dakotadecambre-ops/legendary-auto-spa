@@ -36,23 +36,19 @@ Use this when you are ready to make the customer app and admin backend live.
 - Confirm deactivated or downgraded users lose access immediately by refreshing `/admin`.
 - Do not share your Netlify login for day-to-day admin access.
 
-## Stripe
+## Square
 
-- Add `STRIPE_PUBLISHABLE_KEY` and `STRIPE_SECRET_KEY`.
+- Add `SQUARE_APPLICATION_ID`, `SQUARE_LOCATION_ID`, `SQUARE_ACCESS_TOKEN`, and `SQUARE_ENVIRONMENT`.
 - Add webhook endpoint:
 
 ```text
-https://YOUR-SITE.netlify.app/.netlify/functions/stripe-webhook
+https://YOUR-SITE.netlify.app/.netlify/functions/square-webhook
 ```
 
-- Subscribe to:
-  - `payment_intent.amount_capturable_updated`
-  - `payment_intent.succeeded`
-  - `payment_intent.canceled`
-  - `payment_intent.payment_failed`
-- Copy the webhook signing secret into `STRIPE_WEBHOOK_SECRET`.
-- Leave `STRIPE_WEBHOOK_TOLERANCE_SECONDS` blank or set it to `300`.
-- Register the live domain in Stripe Payment Method Domains for Apple Pay.
+- Subscribe to Square payment update events.
+- Copy the webhook signature key into `SQUARE_WEBHOOK_SIGNATURE_KEY`.
+- Set `SQUARE_WEBHOOK_URL` to the exact webhook URL if Square signature checks fail.
+- Register the live domain for Apple Pay in the Square Developer Console.
 - Test a pre-authorized payment before switching to live mode.
 
 ## Notifications
@@ -71,6 +67,6 @@ https://YOUR-SITE.netlify.app/.netlify/functions/stripe-webhook
 - Confirm `/admin` > System Status shows Supabase constraints as installed.
 - Update status/assignment/private notes from `/admin`.
 - Confirm the matching `jobs` row updates.
-- Authorize a Stripe payment.
-- Confirm Stripe webhook updates payment status.
+- Authorize a Square payment.
+- Confirm Square webhook updates payment status.
 - Capture payment from `/admin`.

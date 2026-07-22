@@ -37,8 +37,9 @@ const locateButton = document.querySelector("#locateButton");
 const addressInput = document.querySelector("#addressInput");
 const saveDraftButton = document.querySelector("#saveDraftButton");
 const finalSubmitButton = document.querySelector("#finalSubmitButton");
-const stripePanel = document.querySelector("#stripePanel");
+const squarePanel = document.querySelector("#squarePanel");
 const paymentElementContainer = document.querySelector("#paymentElement");
+const applePayElementContainer = document.querySelector("#applePayElement");
 const authorizePaymentButton = document.querySelector("#authorizePaymentButton");
 const requestList = document.querySelector("#requestList");
 const historyCount = document.querySelector("#historyCount");
@@ -59,8 +60,10 @@ const liabilityAcceptance = document.querySelector("#liabilityAcceptance");
 
 let deferredInstallPrompt = null;
 let currentStep = 0;
-let stripeInstance = null;
-let stripeElements = null;
+let squarePayments = null;
+let squareCard = null;
+let squareApplePay = null;
+let pendingPaymentBookingId = "";
 let additionalVehicles = [];
 let pendingConfirmationUrl = "confirmation.html";
 
@@ -741,42 +744,121 @@ async function loadPublicConfig() {
   return result.json();
 }
 
-function loadStripeScript() {
-  if (window.Stripe) return Promise.resolve();
+function loadSquareScript(environment) {
+  if (window.Square) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const script = document.createElement("script");
-    script.src = "https://js.stripe.com/v3/";
+    script.src = String(environment || "sandbox").toLowerCase() === "production"
+      ? "https://web.squarecdn.com/v1/square.js"
+      : "https://sandbox.web.squarecdn.com/v1/square.js";
     script.onload = resolve;
-    script.onerror = () => reject(new Error("Could not load Stripe.js"));
+    script.onerror = () => reject(new Error("Could not load Square payments."));
     document.head.appendChild(script);
   });
 }
 
-async function mountStripePayment(clientSecret) {
+async function mountSquarePayment(bookingId) {
   const config = await loadPublicConfig();
-  if (!config.stripe_publishable_key) {
-    throw new Error("Stripe publishable key is not configured.");
+  if (!config.square_application_id || !config.square_location_id) {
+    throw new Error("Square application ID or location ID is not configured.");
   }
 
-  await loadStripeScript();
-  stripeInstance = window.Stripe(config.stripe_publishable_key);
-  stripeElements = stripeInstance.elements({
-    clientSecret,
-    appearance: {
-      theme: "night",
-      variables: {
-        colorPrimary: "#d6b870",
-        colorBackground: "#101010",
-        colorText: "#f7f3ea",
-        borderRadius: "8px"
-      }
-    }
-  });
+  await loadSquareScript(config.square_environment);
+  squarePayments = window.Square.payments(config.square_application_id, config.square_location_id);
+  pendingPaymentBookingId = bookingId;
 
   paymentElementContainer.innerHTML = "";
-  const paymentElement = stripeElements.create("payment");
-  paymentElement.mount("#paymentElement");
-  stripePanel.classList.remove("hidden");
+  if (applePayElementContainer) applePayElementContainer.innerHTML = "";
+
+  squareCard = await squarePayments.card();
+  await squareCard.attach("#paymentElement");
+
+  if (applePayElementContainer) {
+    try {
+      const paymentRequest = squarePayments.paymentRequest({
+        countryCode: "US",
+        currencyCode: "USD",
+        total: {
+          amount: String((currentTotalAmountCents() / 100).toFixed(2)),
+          label: "Legendary Auto Spa"
+        }
+      });
+      squareApplePay = await squarePayments.applePay(paymentRequest);
+      const applePayButton = document.createElement("button");
+      applePayButton.className = "secondary-button full-width";
+      applePayButton.type = "button";
+      applePayButton.textContent = "Use Apple Pay";
+      applePayButton.addEventListener("click", () => authorizeSquarePayment(squareApplePay));
+      applePayElementContainer.appendChild(applePayButton);
+    } catch {
+      squareApplePay = null;
+    }
+  }
+
+  squarePanel.classList.remove("hidden");
+}
+
+async function authorizeSquarePayment(paymentMethod = squareCard) {
+  if (!paymentMethod || !pendingPaymentBookingId) {
+    setRequestStatus("Payment form is not ready yet.");
+    return;
+  }
+
+  authorizePaymentButton.textContent = "Authorizing...";
+  authorizePaymentButton.disabled = true;
+
+  try {
+    const tokenResult = paymentMethod === squareCard
+      ? await paymentMethod.tokenize(squareVerificationDetails())
+      : await paymentMethod.tokenize();
+    if (tokenResult.status !== "OK") {
+      const message = tokenResult.errors?.map((error) => error.message).join(" ") || "Payment authorization failed.";
+      throw new Error(message);
+    }
+
+    const result = await fetch("/.netlify/functions/authorize-payment", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        booking_id: pendingPaymentBookingId,
+        source_id: tokenResult.token
+      })
+    });
+    const data = await result.json().catch(() => ({}));
+    if (!result.ok) throw new Error(data.error || `Payment authorization failed (${result.status})`);
+
+    setRequestStatus("Payment authorized. Opening confirmation...");
+    window.location.href = pendingConfirmationUrl;
+  } catch (error) {
+    setRequestStatus(error.message || "Payment authorization failed.");
+    authorizePaymentButton.textContent = "Authorize payment";
+    authorizePaymentButton.disabled = false;
+  }
+}
+
+function currentTotalAmountCents() {
+  const total = moneyValue(getDisplayTotalPrice());
+  return Math.max(1, Math.round(total * 100));
+}
+
+function squareVerificationDetails() {
+  const request = getRequestData();
+  const [givenName, ...familyParts] = String(request.name || "").trim().split(/\s+/).filter(Boolean);
+  return {
+    amount: String((currentTotalAmountCents() / 100).toFixed(2)),
+    currencyCode: "USD",
+    intent: "CHARGE",
+    customerInitiated: true,
+    sellerKeyedIn: false,
+    billingContact: {
+      givenName: givenName || undefined,
+      familyName: familyParts.join(" ") || undefined,
+      email: request.email || undefined,
+      phone: request.phone || undefined,
+      addressLines: request.address ? [request.address] : undefined,
+      countryCode: "US"
+    }
+  };
 }
 
 vehicleSizeSelect.addEventListener("change", () => syncVehicleClass(vehicleSizeSelect.value));
@@ -888,9 +970,9 @@ async function submitRequest() {
     const reference = bookingReference(result);
     pendingConfirmationUrl = confirmationUrl(result);
     updateSavedRequestReference(request.createdAt, result);
-    if (result.payment?.client_secret) {
+    if (result.payment?.provider === "square" && result.payment?.booking_id) {
       try {
-        await mountStripePayment(result.payment.client_secret);
+        await mountSquarePayment(result.payment.booking_id);
         setRequestStatus(`Request received.${reference} Complete the secure payment authorization below.`);
       } catch (paymentError) {
         setRequestStatus(`Request received.${reference} The secure payment form could not load: ${paymentError.message}`);
@@ -918,29 +1000,7 @@ async function submitRequest() {
 finalSubmitButton.addEventListener("click", submitRequest);
 liabilityAcceptance.addEventListener("change", updateFinalSubmitState);
 
-authorizePaymentButton.addEventListener("click", async () => {
-  if (!stripeInstance || !stripeElements) {
-    setRequestStatus("Payment form is not ready yet.");
-    return;
-  }
-
-  authorizePaymentButton.textContent = "Authorizing...";
-  const result = await stripeInstance.confirmPayment({
-    elements: stripeElements,
-    confirmParams: {
-      return_url: `${window.location.origin}${window.location.pathname}?payment=authorized`
-    }
-  });
-
-  if (result.error) {
-    setRequestStatus(result.error.message || "Payment authorization failed.");
-    authorizePaymentButton.textContent = "Authorize payment";
-    return;
-  }
-
-  window.location.href = pendingConfirmationUrl;
-  authorizePaymentButton.textContent = "Authorized";
-});
+authorizePaymentButton.addEventListener("click", () => authorizeSquarePayment(squareCard));
 
 saveDraftButton.addEventListener("click", () => {
   const request = getRequestData();
@@ -1032,7 +1092,7 @@ function showPaymentReturnState() {
   if (params.get("payment") !== "authorized") return;
   goToStep(3);
   setRequestStatus("Payment authorization received. Legendary Auto Spa can now review and schedule your request.");
-  stripePanel.classList.add("hidden");
+  squarePanel.classList.add("hidden");
 }
 
 updateTierSelection();

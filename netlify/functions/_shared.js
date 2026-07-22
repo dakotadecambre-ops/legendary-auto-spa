@@ -280,34 +280,92 @@ function tierAmountCents(tier, startingPrice) {
   return 5500;
 }
 
-async function createManualCapturePaymentIntent(booking) {
-  if (!process.env.STRIPE_SECRET_KEY) return null;
+function squareConfigured() {
+  return Boolean(
+    process.env.SQUARE_APPLICATION_ID &&
+    process.env.SQUARE_LOCATION_ID &&
+    process.env.SQUARE_ACCESS_TOKEN
+  );
+}
 
-  const body = new URLSearchParams();
-  body.set("amount", String(tierAmountCents(booking.service_tier, booking.starting_price)));
-  body.set("currency", process.env.STRIPE_CURRENCY || "usd");
-  body.set("capture_method", "manual");
-  body.set("automatic_payment_methods[enabled]", "true");
-  body.set("description", `Legendary Auto Spa - ${booking.service_tier}`);
-  body.set("metadata[customer_name]", booking.customer_name);
-  body.set("metadata[phone]", booking.phone);
-  body.set("metadata[service_tier]", booking.service_tier);
-  body.set("metadata[focus_area]", booking.focus_area);
+function squareEnvironment() {
+  return String(process.env.SQUARE_ENVIRONMENT || "sandbox").toLowerCase() === "production"
+    ? "production"
+    : "sandbox";
+}
 
-  const result = await fetch("https://api.stripe.com/v1/payment_intents", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
-      "content-type": "application/x-www-form-urlencoded"
+function squareApiBaseUrl() {
+  return squareEnvironment() === "production"
+    ? "https://connect.squareup.com"
+    : "https://connect.squareupsandbox.com";
+}
+
+function squareApiHeaders() {
+  return {
+    authorization: `Bearer ${process.env.SQUARE_ACCESS_TOKEN}`,
+    "content-type": "application/json",
+    "Square-Version": process.env.SQUARE_VERSION || "2026-07-16"
+  };
+}
+
+async function createSquareAuthorization(booking, sourceId) {
+  if (!squareConfigured()) return null;
+  if (!sourceId) throw new Error("Square payment token is required.");
+
+  const amount = tierAmountCents(booking.service_tier, booking.starting_price);
+  const payload = {
+    idempotency_key: crypto.randomUUID(),
+    source_id: sourceId,
+    amount_money: {
+      amount,
+      currency: process.env.SQUARE_CURRENCY || "USD"
     },
-    body
+    autocomplete: false,
+    location_id: process.env.SQUARE_LOCATION_ID,
+    reference_id: booking.id || booking.booking_id || "",
+    note: `Legendary Auto Spa - ${booking.service_tier || "Detail request"}`,
+    buyer_email_address: booking.email || undefined
+  };
+
+  const result = await fetch(`${squareApiBaseUrl()}/v2/payments`, {
+    method: "POST",
+    headers: squareApiHeaders(),
+    body: JSON.stringify(payload)
   });
 
-  const data = await result.json();
+  const data = await result.json().catch(() => ({}));
   if (!result.ok) {
-    throw new Error(data?.error?.message || "Stripe PaymentIntent failed.");
+    throw new Error(data?.errors?.[0]?.detail || data?.errors?.[0]?.code || "Square payment authorization failed.");
   }
-  return data;
+
+  return data.payment;
+}
+
+async function completeSquarePayment(paymentId) {
+  if (!squareConfigured()) return null;
+  if (!paymentId) throw new Error("Square payment id is required.");
+
+  const result = await fetch(`${squareApiBaseUrl()}/v2/payments/${encodeURIComponent(paymentId)}/complete`, {
+    method: "POST",
+    headers: squareApiHeaders(),
+    body: JSON.stringify({})
+  });
+
+  const data = await result.json().catch(() => ({}));
+  if (!result.ok) {
+    throw new Error(data?.errors?.[0]?.detail || data?.errors?.[0]?.code || "Could not capture Square payment.");
+  }
+
+  return data.payment;
+}
+
+function mapSquarePaymentStatus(status) {
+  const value = String(status || "").toUpperCase();
+  if (value === "APPROVED") return "requires_capture";
+  if (value === "COMPLETED") return "succeeded";
+  if (value === "CANCELED") return "canceled";
+  if (value === "FAILED") return "failed";
+  return value ? "pending" : "not_started";
 }
 
 async function sendNotifications(booking) {
@@ -649,7 +707,11 @@ module.exports = {
   supabaseConfigured,
   isMissingSchemaError,
   setupErrorResponse,
-  createManualCapturePaymentIntent,
+  squareConfigured,
+  squareEnvironment,
+  createSquareAuthorization,
+  completeSquarePayment,
+  mapSquarePaymentStatus,
   sendNotifications,
   notificationConfigStatus,
   logBookingEvent,

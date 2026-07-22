@@ -618,7 +618,7 @@ label,
 
 .recommendation,
 .payment-note,
-.stripe-panel {
+.square-panel {
   display: grid;
   gap: 8px;
   margin: 14px 0;
@@ -629,16 +629,21 @@ label,
   box-shadow: var(--shadow);
 }
 
-.stripe-panel.hidden {
+.square-panel.hidden {
   display: none;
 }
 
-.payment-element {
+.payment-element,
+.wallet-element {
   min-height: 92px;
   padding: 14px;
   border: 1px solid rgba(214, 184, 112, 0.2);
   border-radius: 8px;
   background: #ffffff;
+}
+
+.wallet-element:empty {
+  display: none;
 }
 
 .recommendation span {

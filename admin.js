@@ -38,8 +38,8 @@ const backendSetupLinks = {
   netlify: "https://app.netlify.com/sites/legendaryautospa/configuration/env",
   supabase: "https://supabase.com/dashboard/projects",
   twilio: "https://console.twilio.com/us1/develop/phone-numbers/manage/incoming",
-  stripe: "https://dashboard.stripe.com/apikeys",
-  stripeWebhooks: "https://dashboard.stripe.com/webhooks",
+  square: "https://developer.squareup.com/apps",
+  squareWebhooks: "https://developer.squareup.com/apps",
   resend: "https://resend.com/api-keys"
 };
 let allBookings = [];
@@ -509,7 +509,8 @@ function formatActivityDetails(details) {
   ];
   if (missing.length) return `Missing: ${missing.join(", ")}`;
 
-  if (details.payment_intent_id) return `PaymentIntent: ${details.payment_intent_id}`;
+  if (details.square_payment_id) return `Square payment: ${details.square_payment_id}`;
+  if (details.payment_intent_id) return `Payment: ${details.payment_intent_id}`;
   return "";
 }
 
@@ -610,11 +611,11 @@ function healthLinkFor(key, check) {
   if (key.includes("email") || label.includes("email")) {
     return { href: backendSetupLinks.resend, label: "Open email settings" };
   }
-  if (key.includes("stripe_webhook") || label.includes("webhook")) {
-    return { href: backendSetupLinks.stripeWebhooks, label: "Open Stripe webhooks" };
+  if (key.includes("square_webhook") || label.includes("webhook")) {
+    return { href: backendSetupLinks.squareWebhooks, label: "Open Square webhooks" };
   }
-  if (key.includes("stripe") || label.includes("stripe") || label.includes("payment")) {
-    return { href: backendSetupLinks.stripe, label: "Open Stripe payments" };
+  if (key.includes("square") || label.includes("square") || label.includes("payment")) {
+    return { href: backendSetupLinks.square, label: "Open Square payments" };
   }
   if (key.includes("schema") || key.includes("constraint") || label.includes("schema") || label.includes("constraint")) {
     return { href: backendSetupLinks.supabase, label: "Open Supabase SQL editor" };
@@ -659,7 +660,7 @@ function renderBookings(bookings) {
         <div><span>Location</span><strong>${escapeHtml(booking.service_address)}</strong><p>${escapeHtml(booking.notes)}</p>${mapsUrl ? `<a href="${escapeAttribute(mapsUrl)}" target="_blank" rel="noopener">Open in Google Maps</a>` : ""}</div>
         <div><span>Payment</span><strong>${escapeHtml(booking.payment_preference)}</strong><p>${escapeHtml(booking.payment_status)}</p></div>
         <div><span>Assigned</span><strong>${escapeHtml(booking.assigned_to || "Unassigned")}</strong><p>${formatDate(booking.created_at)}</p></div>
-        <div><span>Stripe</span><strong>${escapeHtml(shortReference(booking.payment_intent_id) || "None")}</strong><p>${escapeHtml(booking.recommended_tier || "")}</p></div>
+        <div><span>Square</span><strong>${escapeHtml(shortReference(booking.payment_intent_id) || "None")}</strong><p>${escapeHtml(booking.recommended_tier || "")}</p></div>
       </div>
 
       ${renderBackendRecords(booking)}

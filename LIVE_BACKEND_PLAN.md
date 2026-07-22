@@ -2,7 +2,7 @@
 
 ## What the current app is
 
-The current project is a customer-facing PWA with Netlify Function backend code, Supabase schema, admin dashboard, notification hooks, and Stripe Payment Element support. It still needs a real Netlify deployment plus Supabase, Stripe, Resend, and Twilio environment variables before it is truly live for customers.
+The current project is a customer-facing PWA with Netlify Function backend code, Supabase schema, admin dashboard, notification hooks, and Square Web Payments support. It still needs a real Netlify deployment plus Supabase, Square, Resend, and Twilio environment variables before it is truly live for customers.
 
 ## What this live customer/admin system needs
 
@@ -16,7 +16,7 @@ The current project is a customer-facing PWA with Netlify Function backend code,
    - Validates required fields.
    - Saves every request to a database.
    - Sends notifications to admins by email, SMS, or dashboard alert.
-   - Creates payment or pre-authorization sessions with Stripe/Square.
+   - Creates Square payment pre-authorizations.
 
 3. Database
    - Stores customers, vehicles, booking requests, service package, focus area, location, status, assigned detailer, payment status, timestamps, and notes.
@@ -35,8 +35,8 @@ The current project is a customer-facing PWA with Netlify Function backend code,
 
 6. Payments
    - Do not collect raw credit-card numbers in this app.
-   - Use Stripe Payment Element, Stripe Checkout, Square Web Payments, or another PCI-compliant provider.
-   - For pre-authorization, create a payment intent/session on the server with manual capture.
+   - Use Square Web Payments or another PCI-compliant provider.
+   - For pre-authorization, create a delayed-capture payment authorization on the server.
    - Apple Pay requires HTTPS and a registered payment domain with the payment provider.
 
 7. Hosting
@@ -49,7 +49,7 @@ The current project is a customer-facing PWA with Netlify Function backend code,
 - Frontend: current HTML/CSS/JS or migrate to React when the admin app is added.
 - Backend/API: Supabase or Netlify Functions.
 - Database/Auth/Admin login: Supabase.
-- Payments: Stripe Payment Element with Apple Pay enabled.
+- Payments: Square Web Payments with Apple Pay enabled.
 - Notifications: Resend for email, Twilio for SMS.
 - Hosting: Netlify with a custom domain.
 
@@ -60,10 +60,10 @@ The current project is a customer-facing PWA with Netlify Function backend code,
 3. Add all required Netlify environment variables.
 4. Create the first approved admin user.
 5. Configure Resend/Twilio notification credentials.
-6. Configure Stripe test-mode payments and webhook.
-7. Register the live domain in Stripe and enable Apple Pay.
+6. Configure Square sandbox payments and webhook.
+7. Register the live domain in Square and enable Apple Pay.
 8. Test customer request, admin dashboard, notification, pre-authorization, webhook, and capture end-to-end.
-9. Switch Stripe and notification providers to live mode.
+9. Switch Square and notification providers to live mode.
 
 ## Environment variables for this project
 
@@ -74,11 +74,14 @@ Set these in Netlify under Site configuration > Environment variables:
 - `PUBLIC_SITE_URL`: Optional public site URL used in admin notification links.
 - `ADMIN_SESSION_SECRET`: Long random string used to sign admin sessions.
 - `ADMIN_SETUP_KEY`: Long random string used once to create approved admin users.
-- `STRIPE_PUBLISHABLE_KEY`: Browser-safe Stripe key for Payment Element.
-- `STRIPE_SECRET_KEY`: Optional at first; needed for payment holds.
-- `STRIPE_WEBHOOK_SECRET`: Needed for Stripe payment status updates.
-- `STRIPE_WEBHOOK_TOLERANCE_SECONDS`: Optional Stripe webhook timestamp tolerance, defaults to `300`.
-- `STRIPE_CURRENCY`: Optional, defaults to `usd`.
+- `SQUARE_APPLICATION_ID`: Browser-safe Square application ID.
+- `SQUARE_LOCATION_ID`: Browser-safe Square seller location ID.
+- `SQUARE_ACCESS_TOKEN`: Server-only Square access token.
+- `SQUARE_ENVIRONMENT`: `sandbox` for testing or `production` for live charges.
+- `SQUARE_WEBHOOK_SIGNATURE_KEY`: Needed for Square payment status webhooks.
+- `SQUARE_WEBHOOK_URL`: Optional; set to the exact Square webhook URL if signature checks fail.
+- `SQUARE_CURRENCY`: Optional, defaults to `USD`.
+- `SQUARE_VERSION`: Optional Square API version override.
 - `DEFAULT_PREAUTH_AMOUNT_CENTS`: Optional; override the package starting price for authorization holds.
 - `RESEND_API_KEY`: Optional email notifications.
 - `ADMIN_EMAIL_FROM`: Optional, for example `Legendary Auto Spa <bookings@yourdomain.com>`.
@@ -99,9 +102,10 @@ Set these in Netlify under Site configuration > Environment variables:
 - `netlify/functions/admin-events.js`: returns recent booking activity and notification history for admins.
 - `netlify/functions/send-test-notification.js`: lets an admin/manager verify Resend/Twilio without creating a fake booking.
 - `netlify/functions/update-booking.js`: lets admins update status, payment status, assignment, and private notes.
-- `netlify/functions/stripe-webhook.js`: receives Stripe payment status events.
+- `netlify/functions/authorize-payment.js`: creates Square delayed-capture payment authorizations.
+- `netlify/functions/square-webhook.js`: receives Square payment status events.
 - `netlify/functions/capture-payment.js`: lets an authenticated admin capture an authorized payment.
-- `netlify/functions/public-config.js`: exposes browser-safe Stripe publishable config.
+- `netlify/functions/public-config.js`: exposes browser-safe Square application/location config.
 - `netlify/functions/health.js`: checks live backend readiness for authenticated admins.
 - `admin.html`, `admin.css`, `admin.js`: admin dashboard.
 - `setup-admin.html`, `setup-admin.js`: browser form for creating the first approved admin with `ADMIN_SETUP_KEY`.
@@ -144,7 +148,7 @@ Admin endpoints verify the token and then reload the current Supabase `admin_use
 
 Role permissions are enforced in the Netlify Functions:
 
-- `admin`: can view bookings/activity, update bookings, create test bookings, manage admin users, and capture Stripe payments.
+- `admin`: can view bookings/activity, update bookings, create test bookings, manage admin users, and capture Square payments.
 - `manager`: can view bookings/activity, update bookings, and create test bookings.
 - `viewer`: can view bookings/activity only.
 
@@ -158,32 +162,27 @@ The booking API also creates related `customers`, `vehicles`, `service_locations
 
 After a successful backend save, the customer app shows a short booking reference derived from the saved Supabase booking ID. The admin dashboard keeps the full booking and linked record IDs.
 
-## Stripe Apple Pay / card authorization
+## Square Apple Pay / card authorization
 
-The customer app now requests a manual-capture PaymentIntent when the customer chooses pre-authorization or Apple Pay/card checkout. If `STRIPE_PUBLISHABLE_KEY` and `STRIPE_SECRET_KEY` are configured, the customer sees Stripe Payment Element and can authorize the payment. The admin can capture an authorized payment from the dashboard.
+The customer app now saves the booking first, then shows Square's secure card form when the customer chooses pre-authorization or Apple Pay/card checkout. If `SQUARE_APPLICATION_ID`, `SQUARE_LOCATION_ID`, and `SQUARE_ACCESS_TOKEN` are configured, the customer can authorize a delayed-capture Square payment. The admin can capture an authorized payment from the dashboard.
 
-If a customer chooses a payment option before Stripe is fully configured, the booking still saves to Supabase and the Activity Feed logs `payment_setup_required`. The customer sees that payment will be handled after review, which avoids duplicate SMS fallbacks after a successful booking.
+If a customer chooses a payment option before Square is fully configured, the booking still saves to Supabase and the Activity Feed logs `payment_setup_required`. The customer sees that payment will be handled after review, which avoids duplicate SMS fallbacks after a successful booking.
 
-Configure the Stripe webhook endpoint as:
+Configure the Square webhook endpoint as:
 
 ```text
-https://YOUR-SITE.netlify.app/.netlify/functions/stripe-webhook
+https://YOUR-SITE.netlify.app/.netlify/functions/square-webhook
 ```
 
-Subscribe it to these PaymentIntent events:
+Subscribe it to Square payment update events, then copy the webhook signature key into `SQUARE_WEBHOOK_SIGNATURE_KEY`.
 
-- `payment_intent.amount_capturable_updated`
-- `payment_intent.succeeded`
-- `payment_intent.canceled`
-- `payment_intent.payment_failed`
-
-Copy the webhook signing secret into `STRIPE_WEBHOOK_SECRET`.
+If webhook signature validation fails, set `SQUARE_WEBHOOK_URL` in Netlify to the exact URL configured in Square, including the path and any trailing slash.
 
 Apple Pay requires:
 
 - HTTPS live site.
-- Stripe wallet payment methods enabled.
-- Your live domain registered in Stripe payment method domains.
+- Square Apple Pay enabled for the application.
+- Your live domain registered for Apple Pay in the Square Developer Console.
 - Safari/iOS environment with Apple Pay available.
 
 ## Live readiness check
@@ -194,7 +193,7 @@ After deployment, log in to `/admin` and review the System Status panel. It chec
 - Supabase configuration plus required table and column readiness for bookings, customers, vehicles, service locations, jobs, activity logs, and admin users.
 - Supabase database constraints for booking statuses, payment statuses, and admin roles.
 - Admin auth/session configuration.
-- Stripe publishable/secret key setup.
-- Stripe webhook secret.
+- Square application/location/access token setup.
+- Square webhook signature key.
 - Email notification settings.
 - SMS notification settings.

@@ -36,17 +36,17 @@ exports.handler = async (event) => {
         ? "Session signing and setup key are configured."
         : "Missing ADMIN_SESSION_SECRET or ADMIN_SETUP_KEY."
     },
-    stripe: {
-      ok: Boolean(process.env.STRIPE_PUBLISHABLE_KEY && process.env.STRIPE_SECRET_KEY),
-      label: "Stripe payments",
-      detail: process.env.STRIPE_PUBLISHABLE_KEY && process.env.STRIPE_SECRET_KEY
-        ? "Stripe publishable and secret keys are configured."
-        : "Missing STRIPE_PUBLISHABLE_KEY or STRIPE_SECRET_KEY."
+    square: {
+      ok: Boolean(process.env.SQUARE_APPLICATION_ID && process.env.SQUARE_LOCATION_ID && process.env.SQUARE_ACCESS_TOKEN),
+      label: "Square payments",
+      detail: process.env.SQUARE_APPLICATION_ID && process.env.SQUARE_LOCATION_ID && process.env.SQUARE_ACCESS_TOKEN
+        ? "Square application, location, and access token are configured."
+        : "Missing SQUARE_APPLICATION_ID, SQUARE_LOCATION_ID, or SQUARE_ACCESS_TOKEN."
     },
-    stripe_webhook: {
-      ok: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
-      label: "Stripe webhook",
-      detail: process.env.STRIPE_WEBHOOK_SECRET ? "Webhook secret is configured." : "Missing STRIPE_WEBHOOK_SECRET."
+    square_webhook: {
+      ok: Boolean(process.env.SQUARE_WEBHOOK_SIGNATURE_KEY),
+      label: "Square webhook",
+      detail: process.env.SQUARE_WEBHOOK_SIGNATURE_KEY ? "Webhook signature key is configured." : "Missing SQUARE_WEBHOOK_SIGNATURE_KEY."
     },
     email_notifications: {
       ok: Boolean(process.env.RESEND_API_KEY && process.env.ADMIN_EMAIL_FROM && process.env.ADMIN_EMAIL_TO),

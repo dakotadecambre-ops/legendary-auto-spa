@@ -8,7 +8,13 @@ exports.handler = async (event) => {
   if (event.httpMethod !== "GET") return response(405, { error: "Method not allowed" });
 
   return response(200, {
-    stripe_publishable_key: process.env.STRIPE_PUBLISHABLE_KEY || "",
-    payments_enabled: Boolean(process.env.STRIPE_PUBLISHABLE_KEY && process.env.STRIPE_SECRET_KEY)
+    square_application_id: process.env.SQUARE_APPLICATION_ID || "",
+    square_location_id: process.env.SQUARE_LOCATION_ID || "",
+    square_environment: process.env.SQUARE_ENVIRONMENT || "sandbox",
+    payments_enabled: Boolean(
+      process.env.SQUARE_APPLICATION_ID &&
+      process.env.SQUARE_LOCATION_ID &&
+      process.env.SQUARE_ACCESS_TOKEN
+    )
   });
 };
