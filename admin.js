@@ -277,7 +277,7 @@ function startBookingPolling() {
   bookingPollTimer = window.setInterval(() => {
     if (dashboardPanel.classList.contains("hidden")) return;
     loadBookings({ silent: true, preserveScroll: true });
-  }, 10000);
+  }, 60000);
 }
 
 function renderFilteredBookings() {
