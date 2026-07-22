@@ -309,23 +309,55 @@
                   </label>
                   <label>
                     Preferred time
-                    <select name="time" required>
-                      <option value="">Select window</option>
-                      <option>Morning</option>
-                      <option>Midday</option>
-                      <option>Afternoon</option>
-                      <option>Evening</option>
+                    <select name="time" id="preferredTimeSelect" required>
+                      <option value="">Select time</option>
+                      <option>7:00 AM</option>
+                      <option>8:00 AM</option>
+                      <option>9:00 AM</option>
+                      <option>10:00 AM</option>
+                      <option>11:00 AM</option>
+                      <option>12:00 PM</option>
+                      <option>1:00 PM</option>
+                      <option>2:00 PM</option>
+                      <option>3:00 PM</option>
+                      <option>4:00 PM</option>
+                      <option>5:00 PM</option>
+                      <option>6:00 PM</option>
+                      <option>7:00 PM</option>
+                      <option value="custom">Custom time</option>
                     </select>
                   </label>
                   <label>
+                    Secondary date
+                    <input name="secondaryDate" type="date">
+                  </label>
+                  <label>
                     Secondary time
-                    <select name="secondaryTime">
-                      <option value="">Select backup window</option>
-                      <option>Morning</option>
-                      <option>Midday</option>
-                      <option>Afternoon</option>
-                      <option>Evening</option>
+                    <select name="secondaryTime" id="secondaryTimeSelect">
+                      <option value="">Select backup time</option>
+                      <option>7:00 AM</option>
+                      <option>8:00 AM</option>
+                      <option>9:00 AM</option>
+                      <option>10:00 AM</option>
+                      <option>11:00 AM</option>
+                      <option>12:00 PM</option>
+                      <option>1:00 PM</option>
+                      <option>2:00 PM</option>
+                      <option>3:00 PM</option>
+                      <option>4:00 PM</option>
+                      <option>5:00 PM</option>
+                      <option>6:00 PM</option>
+                      <option>7:00 PM</option>
+                      <option value="custom">Custom time</option>
                     </select>
+                  </label>
+                  <label class="hidden" id="customTimeField">
+                    Custom preferred time
+                    <input name="customTime" type="text" inputmode="text" placeholder="Example: 7:30 AM">
+                  </label>
+                  <label class="hidden" id="secondaryCustomTimeField">
+                    Custom secondary time
+                    <input name="secondaryCustomTime" type="text" inputmode="text" placeholder="Example: 5:30 PM">
                   </label>
                 </div>
                 <div class="addon-field">

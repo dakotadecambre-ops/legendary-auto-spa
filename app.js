@@ -51,6 +51,10 @@ const saveVehicleCheckbox = document.querySelector("#saveVehicleCheckbox");
 const recurringCheckbox = document.querySelector("#recurringCheckbox");
 const recurringFrequencyField = document.querySelector("#recurringFrequencyField");
 const memberMenu = document.querySelector("#memberMenu");
+const preferredTimeSelect = document.querySelector("#preferredTimeSelect");
+const secondaryTimeSelect = document.querySelector("#secondaryTimeSelect");
+const customTimeField = document.querySelector("#customTimeField");
+const secondaryCustomTimeField = document.querySelector("#secondaryCustomTimeField");
 
 let deferredInstallPrompt = null;
 let currentStep = 0;
@@ -313,13 +317,53 @@ function updatePaymentSelection() {
   summaryPayment.textContent = paymentPreference;
 }
 
+function selectedTimeValue(selectName, customName) {
+  const selected = form.elements[selectName]?.value || "";
+  if (selected !== "custom") return selected;
+  return String(form.elements[customName]?.value || "").trim();
+}
+
+function toggleCustomTimeField(select, field) {
+  if (!select || !field) return;
+  const customInput = field.querySelector("input");
+  const isCustom = select.value === "custom";
+  field.classList.toggle("hidden", !isCustom);
+  if (customInput) {
+    customInput.required = isCustom;
+    if (!isCustom) customInput.value = "";
+  }
+}
+
+function setTimeField(selectName, customName, value) {
+  const select = form.elements[selectName];
+  const customInput = form.elements[customName];
+  const nextValue = String(value || "").trim();
+  if (!select || !nextValue) return;
+  const hasOption = [...select.options].some((option) => option.value === nextValue || option.textContent === nextValue);
+  if (hasOption) {
+    select.value = nextValue;
+    if (customInput) customInput.value = "";
+  } else {
+    select.value = "custom";
+    if (customInput) customInput.value = nextValue;
+  }
+}
+
+function refreshCustomTimeFields() {
+  toggleCustomTimeField(preferredTimeSelect, customTimeField);
+  toggleCustomTimeField(secondaryTimeSelect, secondaryCustomTimeField);
+}
+
 function getRequestData() {
   if (!formStartedAtInput.value) formStartedAtInput.value = new Date().toISOString();
   const formData = new FormData(form);
   const data = Object.fromEntries(formData.entries());
   const tier = priceSummary();
   const extraVehicles = additionalVehiclesSummary();
-  const timingNote = data.secondaryTime ? `Secondary time: ${data.secondaryTime}` : "";
+  const preferredTime = selectedTimeValue("time", "customTime");
+  const secondaryTime = selectedTimeValue("secondaryTime", "secondaryCustomTime");
+  const secondaryDateTime = [data.secondaryDate, secondaryTime].filter(Boolean).join(" ");
+  const timingNote = secondaryDateTime ? `Secondary requested window: ${secondaryDateTime}` : "";
   const vehicleNote = extraVehicles ? `Additional vehicles: ${extraVehicles}` : "";
   const recurringNote = data.recurring
     ? `Recurring service: ${data.recurringFrequency || "Frequency not selected"}`
@@ -332,6 +376,9 @@ function getRequestData() {
     recurringService: data.recurring ? "Yes" : "No",
     recurringFrequency: data.recurring ? data.recurringFrequency : "",
     notes: combinedNotes,
+    time: preferredTime,
+    secondaryTime,
+    secondaryDate: data.secondaryDate || "",
     size: vehicleTypeLabels[tier.vehicleType] || data.size,
     tier: tier.name,
     startingPrice: tier.startingPrice,
@@ -358,7 +405,7 @@ function formatRequestMessage(request) {
     `Vehicle: ${[request.year, request.make, request.model].filter(Boolean).join(" ")} (${request.size})`,
     `Address: ${request.address}`,
     `Preferred: ${request.date} ${request.time}`,
-    request.secondaryTime ? `Secondary time: ${request.secondaryTime}` : null,
+    request.secondaryDate || request.secondaryTime ? `Secondary: ${[request.secondaryDate, request.secondaryTime].filter(Boolean).join(" ")}` : null,
     request.notes ? `Notes: ${request.notes}` : null
   ].filter(Boolean).join("\n");
 }
@@ -515,7 +562,7 @@ function renderRequests() {
           <div><span>Extra vehicles</span><strong>${escapeHtml(request.additionalVehicles || "None")}</strong><p>${escapeHtml(request.additionalVehicles ? "Included in total" : "Single vehicle request")}</p></div>
           <div><span>Recurring</span><strong>${escapeHtml(request.recurringService === "Yes" ? request.recurringFrequency || "Recurring" : "No")}</strong><p>${escapeHtml(request.recurringService === "Yes" ? "Saved to schedule request" : "One-time request")}</p></div>
           <div><span>Payment</span><strong>${escapeHtml(request.paymentPreference || "Request now")}</strong><p>${escapeHtml(request.paymentStatus || "Pending review")}</p></div>
-          <div><span>Schedule</span><strong>${escapeHtml(request.date || "No date")}</strong><p>${escapeHtml([request.time, request.secondaryTime ? `Backup: ${request.secondaryTime}` : ""].filter(Boolean).join(" · ") || "No time")}</p></div>
+          <div><span>Schedule</span><strong>${escapeHtml(request.date || "No date")}</strong><p>${escapeHtml([request.time, request.secondaryDate || request.secondaryTime ? `Backup: ${[request.secondaryDate, request.secondaryTime].filter(Boolean).join(" ")}` : ""].filter(Boolean).join(" · ") || "No time")}</p></div>
           <div><span>Location</span><strong>${escapeHtml(request.address || "No address added")}</strong><p>${escapeHtml(request.notes || "")}</p></div>
           <div><span>Focus</span><strong>${escapeHtml(request.focusArea || "No focus selected")}</strong><p>${escapeHtml(request.focusGoal || "")}</p></div>
         </div>
@@ -587,11 +634,14 @@ function setRequestStatus(message) {
 
 function applyRequestPrefill(request) {
   if (!request) return;
-  const fields = ["name", "phone", "email", "year", "make", "model", "address", "date", "time", "secondaryTime", "notes"];
+  const fields = ["name", "phone", "email", "year", "make", "model", "address", "date", "secondaryDate", "notes"];
   fields.forEach((name) => {
     const field = form.elements[name];
     if (field && request[name] != null) field.value = request[name];
   });
+  setTimeField("time", "customTime", request.time);
+  setTimeField("secondaryTime", "secondaryCustomTime", request.secondaryTime);
+  refreshCustomTimeFields();
   if (request.tier) selectTierByName(request.tier);
   if (request.size) {
     const sizeKey = Object.entries(vehicleTypeLabels).find(([, label]) => label === request.size)?.[0] || request.size;
@@ -902,6 +952,14 @@ recurringCheckbox.addEventListener("change", () => {
   if (!recurringCheckbox.checked) form.elements.recurringFrequency.value = "";
 });
 
+preferredTimeSelect.addEventListener("change", () => {
+  toggleCustomTimeField(preferredTimeSelect, customTimeField);
+});
+
+secondaryTimeSelect.addEventListener("change", () => {
+  toggleCustomTimeField(secondaryTimeSelect, secondaryCustomTimeField);
+});
+
 enableCustomerNotificationsButton.addEventListener("click", async () => {
   if (!("Notification" in window)) {
     customerNotificationStatus.textContent = "Notifications are not supported in this browser.";
@@ -954,6 +1012,7 @@ function showPaymentReturnState() {
 updateTierSelection();
 updateFocusSelection();
 updatePaymentSelection();
+refreshCustomTimeFields();
 goToStep(0);
 renderRequests();
 renderMemberHeader();

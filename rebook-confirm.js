@@ -27,7 +27,7 @@ function renderRequest() {
     <div><span>Vehicle</span><strong>${escapeHtml([request.year, request.make, request.model].filter(Boolean).join(" ") || "Vehicle")}</strong><p>${escapeHtml(request.size || "")}</p></div>
     <div><span>Package</span><strong>${escapeHtml(request.tier || "Detail request")}</strong><p>${escapeHtml(request.startingPrice || "No total")}</p></div>
     <div><span>Add-ons</span><strong>${escapeHtml(request.addOns || "None")}</strong><p>${escapeHtml(request.additionalVehicles || "No extra vehicles")}</p></div>
-    <div><span>Schedule</span><strong>${escapeHtml(request.date || "Same date requested")}</strong><p>${escapeHtml([request.time, request.secondaryTime ? `Backup: ${request.secondaryTime}` : ""].filter(Boolean).join(" · ") || "No time")}</p></div>
+    <div><span>Schedule</span><strong>${escapeHtml(request.date || "Same date requested")}</strong><p>${escapeHtml([request.time, request.secondaryDate || request.secondaryTime ? `Backup: ${[request.secondaryDate, request.secondaryTime].filter(Boolean).join(" ")}` : ""].filter(Boolean).join(" · ") || "No time")}</p></div>
     <div><span>Location</span><strong>${escapeHtml(request.address || "No address")}</strong><p>${escapeHtml(request.notes || "")}</p></div>
     <div><span>Recurring</span><strong>${escapeHtml(request.recurringService === "Yes" ? request.recurringFrequency || "Recurring" : "No")}</strong><p>${escapeHtml(request.recurringService === "Yes" ? "Recurring schedule request" : "One-time request")}</p></div>
     <div><span>Payment</span><strong>${escapeHtml(request.paymentPreference || "Request now")}</strong><p>Payment will follow the selected request option.</p></div>
