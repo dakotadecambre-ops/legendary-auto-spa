@@ -464,11 +464,11 @@
                 <small>Place a secure Square hold before the detail, then capture after approval.</small>
               </label>
 
-              <label class="payment-card">
-                <input type="radio" name="paymentPreference" value="Apple Pay / card checkout">
-                <span>Apple Pay / card</span>
-                <small>Authorize securely through Square when live keys are configured.</small>
-              </label>
+	              <label class="payment-card">
+	                <input type="radio" name="paymentPreference" value="Apple Pay / card checkout">
+	                <span>Apple Pay</span>
+	                <small>Open Apple Pay on supported iPhone/Safari devices, then return here to send the request.</small>
+	              </label>
             </div>
 
             <aside class="payment-note">
@@ -483,15 +483,15 @@
               <p class="form-status" id="customerNotificationStatus" role="status"></p>
             </aside>
 
-            <div class="square-panel hidden" id="squarePanel">
-              <div class="step-copy">
-                <p class="eyebrow">Secure Payment</p>
-                <h3>Authorize with card or Apple Pay</h3>
-              </div>
-              <div id="paymentElement" class="payment-element"></div>
-              <div id="applePayElement" class="wallet-element"></div>
-              <button class="primary-button full-width" id="authorizePaymentButton" type="button">Authorize payment</button>
-            </div>
+	            <div class="square-panel hidden" id="squarePanel">
+	              <div class="step-copy">
+	                <p class="eyebrow">Secure Payment</p>
+	                <h3>Authorize with card or Apple Pay</h3>
+	              </div>
+	              <div id="paymentElement" class="payment-element"></div>
+	              <div id="applePayElement" class="wallet-element"></div>
+	              <button class="primary-button full-width" id="authorizePaymentButton" type="button">Set up payment</button>
+	            </div>
 
             <aside class="summary" aria-live="polite">
               <div>

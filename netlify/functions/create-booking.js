@@ -11,6 +11,8 @@ const {
   supabaseConfigured,
   setupErrorResponse,
   squareConfigured,
+  createSquareAuthorization,
+  mapSquarePaymentStatus,
   sendNotifications,
   notificationConfigStatus,
   logBookingEvent
@@ -50,7 +52,11 @@ exports.handler = async (event) => {
     const wantsPayment = /pre-authorize|apple pay|card/i.test(booking.payment_preference);
     const paymentReady = squareConfigured() && process.env.SQUARE_APPLICATION_ID && process.env.SQUARE_LOCATION_ID;
     const paymentSetupRequired = wantsPayment && !paymentReady;
+    const paymentSourceId = clean(input.paymentSourceId || input.payment_source_id || input.source_id);
     if (wantsPayment && paymentReady) {
+      if (!paymentSourceId) {
+        return response(400, { error: "Payment details are required before sending this request." });
+      }
       booking.payment_status = "pending";
     }
 
@@ -58,8 +64,40 @@ exports.handler = async (event) => {
       method: "POST",
       body: JSON.stringify(booking)
     });
-    const savedBooking = inserted?.[0] || booking;
+    let savedBooking = inserted?.[0] || booking;
     const relatedRecords = await safeCreateRelatedBookingRecords(savedBooking, booking);
+    let authorizedPayment = null;
+
+    if (wantsPayment && paymentReady && paymentSourceId) {
+      authorizedPayment = await createSquareAuthorization({ ...savedBooking, booking_id: savedBooking.id }, paymentSourceId);
+      const paymentStatus = mapSquarePaymentStatus(authorizedPayment.status);
+      const updated = await supabaseFetch(`bookings?id=eq.${encodeURIComponent(savedBooking.id)}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          payment_intent_id: authorizedPayment.id,
+          payment_status: paymentStatus,
+          updated_at: new Date().toISOString()
+        })
+      });
+      savedBooking = updated?.[0] || { ...savedBooking, payment_intent_id: authorizedPayment.id, payment_status: paymentStatus };
+      await safeSyncJob(savedBooking.id, {
+        payment_status: paymentStatus,
+        payment_intent_id: authorizedPayment.id,
+        updated_at: new Date().toISOString()
+      });
+      await safeLogBookingEvent({
+        booking_id: savedBooking.id,
+        event_type: "payment_authorized",
+        channel: "square",
+        status: "success",
+        message: `${input.paymentSourceType || "Payment"} was authorized with Square.`,
+        details: {
+          square_payment_id: authorizedPayment.id,
+          square_status: authorizedPayment.status,
+          amount_money: authorizedPayment.amount_money || null
+        }
+      });
+    }
 
     await safeLogBookingEvent({
       booking_id: savedBooking.id,
@@ -123,13 +161,30 @@ exports.handler = async (event) => {
       payment: wantsPayment && paymentReady ? {
         provider: "square",
         booking_id: savedBooking.id,
-        status: "pending"
+        payment_id: authorizedPayment?.id || savedBooking.payment_intent_id || null,
+        status: savedBooking.payment_status || "pending",
+        square_status: authorizedPayment?.status || null
       } : null
     });
   } catch (error) {
     return setupErrorResponse(error);
   }
 };
+
+function clean(value) {
+  return String(value || "").trim();
+}
+
+async function safeSyncJob(bookingId, update) {
+  try {
+    await supabaseFetch(`jobs?booking_id=eq.${encodeURIComponent(bookingId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(update)
+    });
+  } catch (error) {
+    console.error("Payment authorization job sync failed", error.message);
+  }
+}
 
 async function safeLogBookingEvent(event) {
   try {

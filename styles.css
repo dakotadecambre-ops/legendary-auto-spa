@@ -642,6 +642,29 @@ label,
   background: #ffffff;
 }
 
+.payment-element.hidden,
+.wallet-element.hidden,
+.primary-button.hidden {
+  display: none;
+}
+
+.apple-pay-button {
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  border-radius: 8px;
+  background: #000;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 850;
+}
+
+.payment-helper {
+  margin: 0;
+  color: #1a1a1a;
+  line-height: 1.45;
+}
+
 .wallet-element:empty {
   display: none;
 }

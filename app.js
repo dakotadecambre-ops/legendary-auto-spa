@@ -69,7 +69,8 @@ let currentStep = 0;
 let squarePayments = null;
 let squareCard = null;
 let squareApplePay = null;
-let pendingPaymentBookingId = "";
+let pendingPaymentSourceToken = "";
+let pendingPaymentSourceType = "";
 let additionalVehicles = [];
 let pendingConfirmationUrl = "confirmation.html";
 
@@ -206,6 +207,7 @@ function updateTierSelection() {
   summaryPrice.textContent = tier.displayPrice;
   paymentSummaryTier.textContent = tier.name;
   paymentSummaryPrice.textContent = tier.displayPrice;
+  updateSquarePaymentRequest();
 }
 
 function syncVehicleClass(vehicleType) {
@@ -335,7 +337,9 @@ function updatePaymentSelection() {
     card.classList.toggle("selected", input.checked);
   });
 
+  clearPreparedPayment();
   summaryPayment.textContent = paymentPreference;
+  ensureSquarePaymentForm();
 }
 
 function selectedTimeValue(selectName, customName) {
@@ -791,7 +795,9 @@ function setRequestStatus(message) {
 }
 
 function updateFinalSubmitState() {
-  finalSubmitButton.disabled = !liabilityAcceptance.checked;
+  const paymentPreference = getSelectedPaymentPreference();
+  const needsPreparedApplePay = /apple pay/i.test(paymentPreference);
+  finalSubmitButton.disabled = !liabilityAcceptance.checked || (needsPreparedApplePay && !pendingPaymentSourceToken);
 }
 
 function applyRequestPrefill(request) {
@@ -897,7 +903,7 @@ function loadSquareScript(environment) {
   });
 }
 
-async function mountSquarePayment(bookingId) {
+async function mountSquarePayment() {
   const config = await loadPublicConfig();
   if (!config.square_application_id || !config.square_location_id) {
     throw new Error("Square application ID or location ID is not configured.");
@@ -905,46 +911,100 @@ async function mountSquarePayment(bookingId) {
 
   await loadSquareScript(config.square_environment);
   squarePayments = window.Square.payments(config.square_application_id, config.square_location_id);
-  pendingPaymentBookingId = bookingId;
 
   paymentElementContainer.innerHTML = "";
   if (applePayElementContainer) applePayElementContainer.innerHTML = "";
 
   squareCard = await squarePayments.card();
   await squareCard.attach("#paymentElement");
-
-  if (applePayElementContainer) {
-    try {
-      const paymentRequest = squarePayments.paymentRequest({
-        countryCode: "US",
-        currencyCode: "USD",
-        total: {
-          amount: String((currentTotalAmountCents() / 100).toFixed(2)),
-          label: "Legendary Auto Spa"
-        }
-      });
-      squareApplePay = await squarePayments.applePay(paymentRequest);
-      const applePayButton = document.createElement("button");
-      applePayButton.className = "secondary-button full-width";
-      applePayButton.type = "button";
-      applePayButton.textContent = "Use Apple Pay";
-      applePayButton.addEventListener("click", () => authorizeSquarePayment(squareApplePay));
-      applePayElementContainer.appendChild(applePayButton);
-    } catch {
-      squareApplePay = null;
-    }
-  }
+  await setupApplePay();
 
   squarePanel.classList.remove("hidden");
+  updatePaymentEntryVisibility();
 }
 
-async function authorizeSquarePayment(paymentMethod = squareCard) {
-  if (!paymentMethod || !pendingPaymentBookingId) {
+function squarePaymentRequest() {
+  return squarePayments.paymentRequest({
+    countryCode: "US",
+    currencyCode: "USD",
+    total: {
+      amount: String((currentTotalAmountCents() / 100).toFixed(2)),
+      label: "Legendary Auto Spa"
+    }
+  });
+}
+
+async function setupApplePay() {
+  squareApplePay = null;
+  if (!applePayElementContainer || !squarePayments) return;
+
+  applePayElementContainer.innerHTML = "";
+  try {
+    squareApplePay = await squarePayments.applePay(squarePaymentRequest());
+    const applePayButton = document.createElement("button");
+    applePayButton.className = "apple-pay-button";
+    applePayButton.type = "button";
+    applePayButton.textContent = "Pay with Apple Pay";
+    applePayButton.addEventListener("click", () => preparePaymentSource(squareApplePay, "Apple Pay"));
+    applePayElementContainer.appendChild(applePayButton);
+  } catch {
+    applePayElementContainer.innerHTML = '<p class="payment-helper">Apple Pay is available on supported Apple devices in Safari after this domain is enabled in Square.</p>';
+  }
+}
+
+async function updateSquarePaymentRequest() {
+  if (!squarePayments || !squareApplePay) return;
+  await setupApplePay();
+}
+
+function selectedPaymentNeedsSquare() {
+  return /pre-authorize|apple pay|card/i.test(getSelectedPaymentPreference());
+}
+
+function updatePaymentEntryVisibility() {
+  const preference = getSelectedPaymentPreference();
+  const wantsSquare = selectedPaymentNeedsSquare();
+  const wantsApplePay = /apple pay/i.test(preference);
+  squarePanel.classList.toggle("hidden", !wantsSquare);
+  paymentElementContainer.classList.toggle("hidden", !wantsSquare || wantsApplePay);
+  applePayElementContainer.classList.toggle("hidden", !wantsApplePay);
+  authorizePaymentButton.classList.toggle("hidden", !wantsSquare);
+  authorizePaymentButton.textContent = wantsApplePay
+    ? (pendingPaymentSourceType === "Apple Pay" ? "Apple Pay ready" : "Open Apple Pay")
+    : (pendingPaymentSourceType === "Card" ? "Card ready" : "Save card authorization");
+  updateFinalSubmitState();
+}
+
+async function ensureSquarePaymentForm() {
+  if (!selectedPaymentNeedsSquare()) {
+    squarePanel.classList.add("hidden");
+    return;
+  }
+  if (squareCard && squarePayments) {
+    updatePaymentEntryVisibility();
+    return;
+  }
+  try {
+    await mountSquarePayment();
+    setRequestStatus("Secure payment fields are ready.");
+  } catch (error) {
+    setRequestStatus(`The secure payment form could not load: ${error.message}`);
+  }
+}
+
+function clearPreparedPayment() {
+  pendingPaymentSourceToken = "";
+  pendingPaymentSourceType = "";
+  updateFinalSubmitState();
+}
+
+async function preparePaymentSource(paymentMethod = squareCard, type = "Card") {
+  if (!paymentMethod) {
     setRequestStatus("Payment form is not ready yet.");
     return;
   }
 
-  authorizePaymentButton.textContent = "Authorizing...";
+  authorizePaymentButton.textContent = /apple pay/i.test(type) ? "Opening Apple Pay..." : "Checking card...";
   authorizePaymentButton.disabled = true;
 
   try {
@@ -956,22 +1016,15 @@ async function authorizeSquarePayment(paymentMethod = squareCard) {
       throw new Error(message);
     }
 
-    const result = await fetch("/.netlify/functions/authorize-payment", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        booking_id: pendingPaymentBookingId,
-        source_id: tokenResult.token
-      })
-    });
-    const data = await result.json().catch(() => ({}));
-    if (!result.ok) throw new Error(data.error || `Payment authorization failed (${result.status})`);
-
-    setRequestStatus("Payment authorized. Opening confirmation...");
-    window.location.href = pendingConfirmationUrl;
+    pendingPaymentSourceToken = tokenResult.token;
+    pendingPaymentSourceType = type;
+    setRequestStatus(`${type} is ready. Review the disclosure, then send the request.`);
+    updatePaymentEntryVisibility();
   } catch (error) {
-    setRequestStatus(error.message || "Payment authorization failed.");
-    authorizePaymentButton.textContent = "Authorize payment";
+    clearPreparedPayment();
+    setRequestStatus(error.message || "Payment could not be prepared.");
+    updatePaymentEntryVisibility();
+  } finally {
     authorizePaymentButton.disabled = false;
   }
 }
@@ -1094,36 +1147,50 @@ async function submitRequest() {
     setRequestStatus("Select how often you want the recurring wash.");
     return;
   }
-  if (!liabilityAcceptance.checked) {
-    goToStep(3);
-    setRequestStatus("Read and accept the disclosure terms before sending the request.");
-    liabilityAcceptance.focus();
-    return;
-  }
-  const request = getRequestData();
-  request.paymentPreference = getSelectedPaymentPreference();
-  saveRequest(request);
-  setRequestStatus("Sending request to Legendary Auto Spa...");
+	  if (!liabilityAcceptance.checked) {
+	    goToStep(3);
+	    setRequestStatus("Read and accept the disclosure terms before sending the request.");
+	    liabilityAcceptance.focus();
+	    return;
+	  }
+	  const request = getRequestData();
+	  request.paymentPreference = getSelectedPaymentPreference();
+	  if (selectedPaymentNeedsSquare()) {
+	    await ensureSquarePaymentForm();
+	    if (/apple pay/i.test(request.paymentPreference) && !pendingPaymentSourceToken) {
+	      goToStep(3);
+	      setRequestStatus("Tap Open Apple Pay first, approve it on your phone, then send the request.");
+	      return;
+	    }
+	    if (!pendingPaymentSourceToken) {
+	      await preparePaymentSource(squareCard, "Card");
+	    }
+	    if (!pendingPaymentSourceToken) {
+	      goToStep(3);
+	      setRequestStatus("Enter valid payment details before sending the request.");
+	      return;
+	    }
+	  }
+	  saveRequest(request);
+	  setRequestStatus("Sending request to Legendary Auto Spa...");
 
-  try {
-    const result = await sendBookingToBackend(request);
-    const reference = bookingReference(result);
-    pendingConfirmationUrl = confirmationUrl(result);
-    updateSavedRequestReference(request.createdAt, result);
-    if (result.payment?.provider === "square" && result.payment?.booking_id) {
-      try {
-        await mountSquarePayment(result.payment.booking_id);
-        setRequestStatus(`Request received.${reference} Complete the secure payment authorization below.`);
-      } catch (paymentError) {
-        setRequestStatus(`Request received.${reference} The secure payment form could not load: ${paymentError.message}`);
-      }
-      return;
-    }
-    if (result.payment_setup_required) {
-      window.location.href = pendingConfirmationUrl;
-      return;
-    }
-    window.location.href = pendingConfirmationUrl;
+	  try {
+	    const apiRequest = pendingPaymentSourceToken
+	      ? {
+	          ...request,
+	          paymentSourceId: pendingPaymentSourceToken,
+	          paymentSourceType: pendingPaymentSourceType
+	        }
+	      : request;
+	    const result = await sendBookingToBackend(apiRequest);
+	    const reference = bookingReference(result);
+	    pendingConfirmationUrl = confirmationUrl(result);
+	    updateSavedRequestReference(request.createdAt, result);
+	    if (result.payment_setup_required) {
+	      window.location.href = pendingConfirmationUrl;
+	      return;
+	    }
+	    window.location.href = pendingConfirmationUrl;
   } catch (error) {
     if (error.recoverable) {
       const prefix = error.setupRequired
@@ -1140,7 +1207,13 @@ async function submitRequest() {
 finalSubmitButton.addEventListener("click", submitRequest);
 liabilityAcceptance.addEventListener("change", updateFinalSubmitState);
 
-authorizePaymentButton.addEventListener("click", () => authorizeSquarePayment(squareCard));
+authorizePaymentButton.addEventListener("click", () => {
+  if (/apple pay/i.test(getSelectedPaymentPreference())) {
+    preparePaymentSource(squareApplePay, "Apple Pay");
+    return;
+  }
+  preparePaymentSource(squareCard, "Card");
+});
 
 saveDraftButton.addEventListener("click", () => {
   const request = getRequestData();
