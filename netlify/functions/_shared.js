@@ -454,11 +454,32 @@ async function sendEmailNotification(booking) {
 }
 
 async function sendSmsNotification(booking) {
+  const recipients = notificationRecipients(process.env.ADMIN_SMS_TO);
+  if (!recipients.length) throw new Error("No admin SMS recipients are configured");
+
+  const auth = Buffer
+    .from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`)
+    .toString("base64");
+
+  const results = await Promise.all(recipients.map((recipient) => sendSmsToRecipient(booking, recipient, auth)));
+  const failed = results.filter((result) => !result.ok);
+  if (failed.length) {
+    throw new Error(`SMS notification failed for ${failed.length} admin number${failed.length === 1 ? "" : "s"}`);
+  }
+
+  return {
+    ok: true,
+    message: `SMS notification sent to ${results.length} admin number${results.length === 1 ? "" : "s"}`,
+    provider_id: results.map((result) => result.provider_id).filter(Boolean).join(",")
+  };
+}
+
+async function sendSmsToRecipient(booking, recipient, auth) {
   const body = new URLSearchParams();
   body.set("From", process.env.TWILIO_FROM_NUMBER);
-  body.set("To", process.env.ADMIN_SMS_TO);
+  body.set("To", recipient);
   body.set("Body", [
-    `New Legendary request: ${booking.customer_name}`,
+    `Pending Legendary request: ${booking.customer_name}`,
     `${booking.service_tier} ${booking.starting_price}`,
     `${booking.vehicle_size}: ${[booking.vehicle_year, booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(" ")}`,
     booking.add_ons ? `Add-ons: ${booking.add_ons}` : null,
@@ -466,10 +487,6 @@ async function sendSmsNotification(booking) {
     booking.phone,
     booking.admin_url || null
   ].filter(Boolean).join(" | "));
-
-  const auth = Buffer
-    .from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`)
-    .toString("base64");
 
   const result = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`, {
     method: "POST",
@@ -481,12 +498,24 @@ async function sendSmsNotification(booking) {
   });
 
   const data = await result.json().catch(() => ({}));
-  if (!result.ok) throw new Error(data?.message || "SMS notification failed");
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: data?.message || "SMS notification failed"
+    };
+  }
   return {
     ok: true,
     message: "SMS notification sent",
     provider_id: data?.sid || ""
   };
+}
+
+function notificationRecipients(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 async function logBookingEvent(event) {

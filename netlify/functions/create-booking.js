@@ -125,11 +125,13 @@ exports.handler = async (event) => {
     }
 
     const baseUrl = siteBaseUrl(event);
-    const notifications = await sendNotifications({
-      ...booking,
-      id: savedBooking.id,
-      admin_url: baseUrl ? `${baseUrl}/admin` : ""
-    });
+    const notifications = savedBooking.status === "new"
+      ? await sendNotifications({
+        ...booking,
+        id: savedBooking.id,
+        admin_url: baseUrl ? `${baseUrl}/admin` : ""
+      })
+      : [];
     if (!notifications.length) {
       await safeLogBookingEvent({
         booking_id: savedBooking.id,
