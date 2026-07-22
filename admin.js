@@ -28,6 +28,7 @@ const clearCustomerSearchButton = document.querySelector("#clearCustomerSearchBu
 const customerSearchStatus = document.querySelector("#customerSearchStatus");
 const scheduleQueue = document.querySelector("#scheduleQueue");
 const membersList = document.querySelector("#membersList");
+const panelToggles = [...document.querySelectorAll("[data-toggle-panel]")];
 const MEMBER_ACCOUNTS_KEY = "legendary-auto-spa.memberAccounts";
 
 const statuses = ["new", "contacted", "scheduled", "in_progress", "complete", "canceled"];
@@ -163,6 +164,18 @@ clearCustomerSearchButton.addEventListener("click", () => {
   customerSearchInput.focus();
 });
 
+panelToggles.forEach((toggle) => {
+  toggle.addEventListener("click", () => {
+    const target = document.querySelector(`#${toggle.dataset.togglePanel}`);
+    if (!target) return;
+    const nextOpen = target.classList.contains("hidden");
+    target.classList.toggle("hidden", !nextOpen);
+    toggle.setAttribute("aria-expanded", String(nextOpen));
+    const label = toggle.querySelector("span");
+    if (label) label.textContent = nextOpen ? "Close" : "Open";
+  });
+});
+
 adminUserForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   await saveAdminUser({
@@ -231,17 +244,17 @@ function startBookingPolling() {
 
 function renderFilteredBookings() {
   const query = String(customerSearchInput?.value || "").trim().toLowerCase();
-  const bookings = query
+  const visibleBookings = query
     ? allBookings.filter((booking) => bookingMatchesQuery(booking, query))
-    : allBookings;
+    : pendingBookings(allBookings);
 
   if (customerSearchStatus) {
     customerSearchStatus.textContent = query
-      ? `Showing ${bookings.length} of ${allBookings.length} matching booking${bookings.length === 1 ? "" : "s"}.`
-      : "Showing all booking history.";
+      ? `Showing ${visibleBookings.length} of ${allBookings.length} matching booking${visibleBookings.length === 1 ? "" : "s"}.`
+      : `Showing ${visibleBookings.length} pending request${visibleBookings.length === 1 ? "" : "s"}.`;
   }
 
-  renderBookings(bookings);
+  renderBookings(visibleBookings);
   renderScheduleQueue(allBookings);
 }
 
@@ -264,26 +277,44 @@ function recurringFrequency(booking) {
   return match?.[1]?.trim() || "";
 }
 
+function pendingBookings(bookings) {
+  return bookings.filter((booking) => ["new", "contacted"].includes(booking.status || "new"));
+}
+
+function scheduledBookings(bookings) {
+  return bookings.filter((booking) => ["scheduled", "in_progress"].includes(booking.status || ""));
+}
+
 function renderScheduleQueue(bookings) {
-  const recurring = bookings.filter((booking) => recurringFrequency(booking));
-  if (!recurring.length) {
-    scheduleQueue.innerHTML = '<p class="empty-state">No recurring requests yet.</p>';
+  const scheduled = scheduledBookings(bookings);
+  if (!scheduled.length) {
+    scheduleQueue.innerHTML = '<p class="empty-state">No accepted requests yet. Pending requests will move here after an admin accepts them.</p>';
     return;
   }
 
-  scheduleQueue.innerHTML = recurring.map((booking) => `
-    <article class="activity-item">
+  const canUpdateBookings = hasAdminRole(["admin", "manager"]);
+  scheduleQueue.innerHTML = scheduled.map((booking) => {
+    const recurring = recurringFrequency(booking);
+    return `
+    <article class="activity-item" data-id="${escapeAttribute(booking.id || "")}">
       <div>
-        <strong>${escapeHtml(booking.customer_name || "Customer")} · ${escapeHtml(recurringFrequency(booking))}</strong>
+        <strong>${escapeHtml(booking.customer_name || "Customer")}${recurring ? ` · ${escapeHtml(recurring)}` : ""}</strong>
         <p>${escapeHtml(booking.service_tier || "Detail request")} · ${escapeHtml(booking.preferred_date || "No date")} · ${escapeHtml(booking.preferred_time || "No time")}</p>
-        <small>${escapeHtml([booking.vehicle_year, booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(" "))}</small>
+        <small>${escapeHtml([booking.vehicle_year, booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(" "))} · ${escapeHtml(booking.service_address || "")}</small>
       </div>
-      <span>
-        ${escapeHtml(booking.status || "new")}
-        <small>${formatDate(booking.created_at)}</small>
-      </span>
+      ${canUpdateBookings ? `
+        <div class="queue-actions">
+          <span class="status-pill">${escapeHtml(booking.status || "scheduled")}</span>
+          <button class="secondary-button compact-button" type="button" data-decline>Decline</button>
+        </div>
+      ` : `<span>${escapeHtml(booking.status || "scheduled")}<small>${formatDate(booking.created_at)}</small></span>`}
     </article>
-  `).join("");
+  `;
+  }).join("");
+
+  scheduleQueue.querySelectorAll("[data-decline]").forEach((button) => {
+    button.addEventListener("click", () => quickUpdateBooking(button.closest("[data-id]"), "canceled"));
+  });
 }
 
 function readMemberAccounts() {
@@ -565,7 +596,7 @@ function healthLinkFor(key, check) {
 function renderBookings(bookings) {
   renderStats(bookings);
   if (!bookings.length) {
-    adminBookings.innerHTML = '<p class="empty-state">No requests yet.</p>';
+    adminBookings.innerHTML = '<p class="empty-state">No pending requests right now.</p>';
     return;
   }
 
@@ -592,7 +623,7 @@ function renderBookings(bookings) {
         <div><span>Add-ons</span><strong>${escapeHtml(booking.add_ons || "None")}</strong><p>${escapeHtml(pricing.addOnsLabel)}</p></div>
         <div><span>Estimated total</span><strong>${escapeHtml(pricing.totalLabel)}</strong><p>Package plus selected add-ons</p></div>
         <div><span>Schedule</span><strong>${escapeHtml(booking.preferred_date)}</strong><p>${escapeHtml(booking.preferred_time)}</p></div>
-        <div><span>Recurring</span><strong>${escapeHtml(recurring || "No")}</strong><p>${escapeHtml(recurring ? "In schedule queue" : "One-time request")}</p></div>
+        <div><span>Recurring</span><strong>${escapeHtml(recurring || "No")}</strong><p>${escapeHtml(recurring ? "Will repeat after accepted" : "One-time request")}</p></div>
         <div><span>Location</span><strong>${escapeHtml(booking.service_address)}</strong><p>${escapeHtml(booking.notes)}</p>${mapsUrl ? `<a href="${escapeAttribute(mapsUrl)}" target="_blank" rel="noopener">Open in Google Maps</a>` : ""}</div>
         <div><span>Payment</span><strong>${escapeHtml(booking.payment_preference)}</strong><p>${escapeHtml(booking.payment_status)}</p></div>
         <div><span>Assigned</span><strong>${escapeHtml(booking.assigned_to || "Unassigned")}</strong><p>${formatDate(booking.created_at)}</p></div>
@@ -744,14 +775,14 @@ function shortReference(value) {
 }
 
 function renderStats(bookings) {
-  const newCount = bookings.filter((booking) => booking.status === "new").length;
-  const scheduled = bookings.filter((booking) => booking.status === "scheduled").length;
-  const completed = bookings.filter((booking) => booking.status === "complete").length;
-  const paymentPending = bookings.filter((booking) => ["pending", "requires_capture"].includes(booking.payment_status)).length;
+  const pending = pendingBookings(allBookings).length;
+  const scheduled = scheduledBookings(allBookings).length;
+  const completed = allBookings.filter((booking) => booking.status === "complete").length;
+  const paymentPending = allBookings.filter((booking) => ["pending", "requires_capture"].includes(booking.payment_status)).length;
 
   adminStats.innerHTML = [
-    ["New", newCount],
-    ["Scheduled", scheduled],
+    ["Pending", pending],
+    ["Accepted", scheduled],
     ["Complete", completed],
     ["Payment pending", paymentPending]
   ].map(([label, value]) => `

@@ -78,58 +78,64 @@
         <section class="activity-panel" aria-labelledby="scheduleQueueTitle">
           <div class="panel-heading">
             <div>
-              <p class="eyebrow">Recurring</p>
+              <p class="eyebrow">Accepted Work</p>
               <h3 id="scheduleQueueTitle">Schedule Queue</h3>
             </div>
           </div>
           <div class="activity-list" id="scheduleQueue">
-            <p class="empty-state">Recurring requests will appear here.</p>
+            <p class="empty-state">Accepted requests will appear here.</p>
           </div>
         </section>
-        <section class="activity-panel" aria-labelledby="membersTitle">
-          <div class="panel-heading">
+        <section class="activity-panel collapsed-panel" aria-labelledby="membersTitle">
+          <button class="panel-heading panel-toggle" type="button" data-toggle-panel="membersContent" aria-expanded="false">
             <div>
               <p class="eyebrow">Members</p>
               <h3 id="membersTitle">Members</h3>
             </div>
-          </div>
-          <div class="activity-list" id="membersList">
-            <p class="empty-state">Member accounts will appear here after backend member storage is connected.</p>
+            <span>Open</span>
+          </button>
+          <div class="collapsible-content hidden" id="membersContent">
+            <div class="activity-list" id="membersList">
+              <p class="empty-state">Member accounts will appear here after backend member storage is connected.</p>
+            </div>
           </div>
         </section>
-        <section class="admin-users-panel" id="adminUsersPanel" aria-labelledby="adminUsersTitle">
-          <div class="panel-heading">
+        <section class="admin-users-panel collapsed-panel" id="adminUsersPanel" aria-labelledby="adminUsersTitle">
+          <button class="panel-heading panel-toggle" type="button" data-toggle-panel="adminUsersContent" aria-expanded="false">
             <div>
               <p class="eyebrow">Team Access</p>
               <h3 id="adminUsersTitle">Admin Users</h3>
             </div>
-          </div>
-          <form class="admin-user-form" id="adminUserForm">
-            <label>
-              Email
-              <input id="adminUserEmail" type="email" autocomplete="off" placeholder="partner@example.com" required>
-            </label>
-            <label>
-              Password
-              <input id="adminUserPassword" type="password" autocomplete="new-password" placeholder="10+ characters">
-            </label>
-            <label>
-              Role
-              <select id="adminUserRole">
-                <option value="admin">Admin</option>
-                <option value="manager">Manager</option>
-                <option value="viewer">Viewer</option>
-              </select>
-            </label>
-            <label class="checkbox-label">
-              <input id="adminUserActive" type="checkbox" checked>
-              Active
-            </label>
-            <button class="secondary-button" type="submit">Save admin</button>
-          </form>
-          <p class="form-status" id="adminUsersStatus" role="status"></p>
-          <div class="admin-users-list" id="adminUsers">
-            <p class="empty-state">Admin users will load after login.</p>
+            <span>Open</span>
+          </button>
+          <div class="collapsible-content hidden" id="adminUsersContent">
+            <form class="admin-user-form" id="adminUserForm">
+              <label>
+                Email
+                <input id="adminUserEmail" type="email" autocomplete="off" placeholder="partner@example.com" required>
+              </label>
+              <label>
+                Password
+                <input id="adminUserPassword" type="password" autocomplete="new-password" placeholder="10+ characters">
+              </label>
+              <label>
+                Role
+                <select id="adminUserRole">
+                  <option value="admin">Admin</option>
+                  <option value="manager">Manager</option>
+                  <option value="viewer">Viewer</option>
+                </select>
+              </label>
+              <label class="checkbox-label">
+                <input id="adminUserActive" type="checkbox" checked>
+                Active
+              </label>
+              <button class="secondary-button" type="submit">Save admin</button>
+            </form>
+            <p class="form-status" id="adminUsersStatus" role="status"></p>
+            <div class="admin-users-list" id="adminUsers">
+              <p class="empty-state">Admin users will load after login.</p>
+            </div>
           </div>
         </section>
         <section class="activity-panel" aria-labelledby="activityTitle">
@@ -144,6 +150,13 @@
           </div>
         </section>
         <div class="admin-stats" id="adminStats"></div>
+        <div class="pending-heading">
+          <div>
+            <p class="eyebrow">Pending Queue</p>
+            <h3>Request Details</h3>
+          </div>
+          <p>Accept a request to move it into the schedule queue, or decline it to remove it from pending work.</p>
+        </div>
         <div class="booking-list" id="adminBookings">
           <p class="empty-state">No bookings loaded yet.</p>
         </div>
