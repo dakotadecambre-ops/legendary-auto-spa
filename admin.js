@@ -593,6 +593,7 @@ async function renderMembers() {
     return;
   }
 
+  const canDeleteMembers = hasAdminRole(["admin"]);
   membersList.innerHTML = members.map((member) => {
     const vehicles = (member.vehicles || member.member_vehicles || []).map((vehicle) => [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ")).filter(Boolean);
     const locations = (member.locations || member.member_locations || []).map((location) => location.address).filter(Boolean);
@@ -609,6 +610,7 @@ async function renderMembers() {
         <span>
           ${requests.length} request${requests.length === 1 ? "" : "s"}
           <small>${formatDate(member.updated_at || member.updatedAt || member.created_at || member.createdAt)}</small>
+          ${canDeleteMembers ? `<button class="secondary-button compact-button" type="button" data-member-delete="${escapeAttribute(member.id || "")}" data-member-name="${escapeAttribute(member.name || "Member")}">Delete</button>` : ""}
         </span>
       </article>
     `;
@@ -621,6 +623,45 @@ async function renderMembers() {
       customerSearchInput.scrollIntoView({ behavior: "smooth", block: "center" });
     });
   });
+
+  membersList.querySelectorAll("[data-member-delete]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const memberId = button.dataset.memberDelete || "";
+      const memberName = button.dataset.memberName || "this member";
+      const confirmed = window.confirm(`Delete ${memberName}? This removes the member account, saved vehicles and locations, sessions, stored push subscriptions, and related bookings tied to that member phone number.`);
+      if (!confirmed) return;
+      await deleteMemberAccount(memberId, button);
+    });
+  });
+}
+
+async function deleteMemberAccount(memberId, button) {
+  if (!memberId) return;
+  const previousLabel = button?.textContent || "Delete";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Deleting...";
+  }
+
+  adminActionStatus.textContent = "Deleting member account...";
+  try {
+    const data = await api("admin-members", {
+      method: "DELETE",
+      body: JSON.stringify({ id: memberId })
+    });
+    adminActionStatus.textContent = data.ok
+      ? `Deleted ${data.deleted_member_name || "member"} and ${data.deleted_bookings || 0} related booking${data.deleted_bookings === 1 ? "" : "s"}.`
+      : "Member delete request finished.";
+    await loadActivity();
+    await loadBookings({ silent: true, preserveScroll: true });
+    await renderMembers();
+  } catch (error) {
+    adminActionStatus.textContent = error.message;
+    if (button) {
+      button.disabled = false;
+      button.textContent = previousLabel;
+    }
+  }
 }
 
 async function loadHealth() {

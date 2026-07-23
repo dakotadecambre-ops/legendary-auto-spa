@@ -84,6 +84,29 @@
             </label>
           </fieldset>
 
+          <fieldset>
+            <legend>Booking updates</legend>
+            <div class="payment-options" role="radiogroup" aria-label="Member booking update preference">
+              <label class="payment-card selected">
+                <input type="radio" name="notificationPreference" value="sms" checked>
+                <span>SMS only</span>
+                <small>Text me for accepted, declined, rescheduled, on-the-way, and completed updates.</small>
+              </label>
+              <label class="payment-card">
+                <input type="radio" name="notificationPreference" value="push">
+                <span>Push only</span>
+                <small>Use app notifications only. This device will be asked to allow notifications.</small>
+              </label>
+              <label class="payment-card">
+                <input type="radio" name="notificationPreference" value="both">
+                <span>SMS + push</span>
+                <small>Send both texts and app notifications for operational updates.</small>
+              </label>
+            </div>
+            <button class="secondary-button full-width" id="enableMemberNotificationsButton" type="button">Enable push notifications</button>
+            <p class="form-status" id="memberNotificationStatus" role="status"></p>
+          </fieldset>
+
           <button class="primary-button full-width" type="submit">Create account</button>
         </form>
         <p class="form-status" id="createMemberStatus" role="status"></p>

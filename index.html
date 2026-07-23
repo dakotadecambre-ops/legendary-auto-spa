@@ -477,9 +477,26 @@
             </aside>
 
             <aside class="payment-note">
-              <strong>App notifications</strong>
-              <p>Allow browser notifications so Legendary Auto Spa can update this device when supported by the browser.</p>
-              <button class="secondary-button full-width" id="enableCustomerNotificationsButton" type="button">Enable notifications</button>
+              <strong>Booking update preference</strong>
+              <p>Choose how you want Legendary Auto Spa to update this device for accepted, declined, time change, on-the-way, and completed alerts.</p>
+              <div class="payment-options" role="radiogroup" aria-label="Booking update preference">
+                <label class="payment-card selected">
+                  <input type="radio" name="notificationPreference" value="sms" checked>
+                  <span>SMS only</span>
+                  <small>Text me with booking updates.</small>
+                </label>
+                <label class="payment-card">
+                  <input type="radio" name="notificationPreference" value="push">
+                  <span>Push only</span>
+                  <small>Use app notifications only on this device.</small>
+                </label>
+                <label class="payment-card">
+                  <input type="radio" name="notificationPreference" value="both">
+                  <span>SMS + push</span>
+                  <small>Send both texts and app alerts.</small>
+                </label>
+              </div>
+              <button class="secondary-button full-width" id="enableCustomerNotificationsButton" type="button">Enable push notifications</button>
               <p class="form-status" id="customerNotificationStatus" role="status"></p>
             </aside>
 

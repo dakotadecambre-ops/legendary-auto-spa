@@ -48,6 +48,8 @@ const addVehicleButton = document.querySelector("#addVehicleButton");
 const additionalVehiclesList = document.querySelector("#additionalVehiclesList");
 const enableCustomerNotificationsButton = document.querySelector("#enableCustomerNotificationsButton");
 const customerNotificationStatus = document.querySelector("#customerNotificationStatus");
+const notificationCards = [...document.querySelectorAll("input[name='notificationPreference']")].map((input) => input.closest(".payment-card"));
+const notificationPreferenceInputs = [...document.querySelectorAll("input[name='notificationPreference']")];
 const saveVehicleCheckbox = document.querySelector("#saveVehicleCheckbox");
 const recurringCheckbox = document.querySelector("#recurringCheckbox");
 const recurringFrequencyField = document.querySelector("#recurringFrequencyField");
@@ -66,6 +68,9 @@ let squareApplePay = null;
 let pendingPaymentBookingId = "";
 let additionalVehicles = [];
 let pendingConfirmationUrl = "confirmation.html";
+let publicConfigPromise = null;
+let serviceWorkerReadyPromise = null;
+let customerPushSubscription = null;
 
 const priceDatasetKeys = {
   cars: "priceCars",
@@ -316,6 +321,61 @@ function updatePaymentSelection() {
   summaryPayment.textContent = paymentPreference;
 }
 
+function getNotificationPreference() {
+  const selected = document.querySelector("input[name='notificationPreference']:checked");
+  return selected?.value || "sms";
+}
+
+function notificationRequiresPush(preference = getNotificationPreference()) {
+  return preference === "push";
+}
+
+function notificationWantsPush(preference = getNotificationPreference()) {
+  return preference === "push" || preference === "both";
+}
+
+function notificationWantsSms(preference = getNotificationPreference()) {
+  return preference === "sms" || preference === "both";
+}
+
+function pushSupported() {
+  return Boolean(
+    "serviceWorker" in navigator &&
+    "PushManager" in window &&
+    "Notification" in window
+  );
+}
+
+function updateNotificationSelection() {
+  const preference = getNotificationPreference();
+  notificationCards.forEach((card) => {
+    const input = card.querySelector("input");
+    card.classList.toggle("selected", input.checked);
+  });
+
+  if (!pushSupported()) {
+    if (notificationRequiresPush(preference)) {
+      customerNotificationStatus.textContent = "Push notifications are not supported in this browser. Choose SMS or open the installed app on a supported device.";
+    } else {
+      customerNotificationStatus.textContent = "SMS-only updates selected.";
+    }
+    updateFinalSubmitState();
+    return;
+  }
+
+  if (notificationRequiresPush(preference) && !customerPushSubscription) {
+    customerNotificationStatus.textContent = "Push-only requires notifications to be enabled on this device before you can send the request.";
+  } else if (notificationWantsPush(preference) && customerPushSubscription) {
+    customerNotificationStatus.textContent = "Push notifications are ready on this device.";
+  } else if (notificationWantsPush(preference)) {
+    customerNotificationStatus.textContent = "Push notifications are available. Enable them on this device if you want app alerts.";
+  } else {
+    customerNotificationStatus.textContent = "SMS-only updates selected.";
+  }
+
+  updateFinalSubmitState();
+}
+
 function selectedTimeValue(selectName, customName) {
   const selected = form.elements[selectName]?.value || "";
   if (selected !== "custom") return selected;
@@ -353,6 +413,18 @@ function refreshCustomTimeFields() {
   toggleCustomTimeField(secondaryTimeSelect, secondaryCustomTimeField);
 }
 
+function notificationPayload() {
+  const preference = getNotificationPreference();
+  return {
+    notificationPreference: preference,
+    smsOptIn: notificationWantsSms(preference),
+    pushEnabled: Boolean(customerPushSubscription) && notificationWantsPush(preference),
+    pushSubscription: customerPushSubscription,
+    pushUserAgent: navigator.userAgent || "",
+    pushDeviceLabel: navigator.platform || "Customer device"
+  };
+}
+
 function getRequestData() {
   if (!formStartedAtInput.value) formStartedAtInput.value = new Date().toISOString();
   const formData = new FormData(form);
@@ -373,6 +445,7 @@ function getRequestData() {
   const combinedNotes = [data.notes, timingNote, vehicleNote, recurringNote, liabilityNote].filter(Boolean).join("\n\n");
   return {
     ...data,
+    ...notificationPayload(),
     addOns: formData.getAll("addOns").join(", "),
     additionalVehicles: extraVehicles,
     recurringService: data.recurring ? "Yes" : "No",
@@ -539,6 +612,41 @@ function renderMemberHeader() {
   });
 }
 
+function normalizeVehicleSizeKey(value) {
+  if (["cars", "suvs", "trucks"].includes(value)) return value;
+  return Object.entries(vehicleTypeLabels).find(([, label]) => label === value)?.[0] || "cars";
+}
+
+function applyMemberDefaults() {
+  const account = activeMember();
+  if (!account) return;
+
+  if (!form.elements.name.value && account.name) form.elements.name.value = account.name;
+  if (!form.elements.phone.value && account.phone) form.elements.phone.value = account.phone;
+  if (!form.elements.email.value && account.email) form.elements.email.value = account.email;
+
+  const defaultVehicle = (account.vehicles || []).find((vehicle) => vehicle.is_default) || account.vehicles?.[0];
+  if (defaultVehicle) {
+    if (!form.elements.year.value && defaultVehicle.year) form.elements.year.value = defaultVehicle.year;
+    if (!form.elements.make.value && defaultVehicle.make) form.elements.make.value = defaultVehicle.make;
+    if (!form.elements.model.value && defaultVehicle.model) form.elements.model.value = defaultVehicle.model;
+    syncVehicleClass(normalizeVehicleSizeKey(defaultVehicle.size));
+    if (defaultVehicle.tier) selectTierByName(defaultVehicle.tier);
+  }
+
+  const defaultLocation = (account.locations || []).find((location) => location.is_default) || account.locations?.[0];
+  if (defaultLocation && !form.elements.address.value) {
+    form.elements.address.value = defaultLocation.address || "";
+  }
+
+  if (account.notification_preference) {
+    const notificationInput = document.querySelector(`input[name='notificationPreference'][value='${account.notification_preference}']`);
+    if (notificationInput) notificationInput.checked = true;
+  }
+
+  updateNotificationSelection();
+}
+
 function saveRequest(request) {
   const requests = [request, ...readRequests()].slice(0, 8);
   localStorage.setItem(REQUESTS_KEY, JSON.stringify(requests));
@@ -646,7 +754,9 @@ function setRequestStatus(message) {
 }
 
 function updateFinalSubmitState() {
-  finalSubmitButton.disabled = !liabilityAcceptance.checked;
+  const preference = getNotificationPreference();
+  const pushBlocked = notificationRequiresPush(preference) && !customerPushSubscription;
+  finalSubmitButton.disabled = !liabilityAcceptance.checked || pushBlocked;
 }
 
 function applyRequestPrefill(request) {
@@ -668,6 +778,11 @@ function applyRequestPrefill(request) {
     recurringCheckbox.checked = true;
     recurringFrequencyField.classList.remove("hidden");
     form.elements.recurringFrequency.value = request.recurringFrequency || "";
+  }
+  if (request.notificationPreference) {
+    const notificationInput = document.querySelector(`input[name='notificationPreference'][value='${request.notificationPreference}']`);
+    if (notificationInput) notificationInput.checked = true;
+    updateNotificationSelection();
   }
   goToStep(2);
   setRequestStatus("Review the request details, then continue to confirm.");
@@ -734,9 +849,113 @@ async function sendBookingToBackend(request) {
 }
 
 async function loadPublicConfig() {
-  const result = await fetch("/.netlify/functions/public-config");
-  if (!result.ok) return {};
-  return result.json();
+  if (!publicConfigPromise) {
+    publicConfigPromise = fetch("/.netlify/functions/public-config")
+      .then((result) => (result.ok ? result.json() : {}))
+      .catch(() => ({}));
+  }
+  return publicConfigPromise;
+}
+
+function urlBase64ToUint8Array(value) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = `${value}${padding}`.replaceAll("-", "+").replaceAll("_", "/");
+  const raw = window.atob(base64);
+  return Uint8Array.from([...raw].map((char) => char.charCodeAt(0)));
+}
+
+async function serviceWorkerReady() {
+  if (!serviceWorkerReadyPromise) {
+    serviceWorkerReadyPromise = navigator.serviceWorker.register("service-worker.js")
+      .then(() => navigator.serviceWorker.ready);
+  }
+  return serviceWorkerReadyPromise;
+}
+
+async function hydrateExistingPushSubscription() {
+  if (!pushSupported()) return null;
+  try {
+    const registration = await serviceWorkerReady();
+    const subscription = await registration.pushManager.getSubscription();
+    customerPushSubscription = subscription ? subscription.toJSON() : null;
+    updateNotificationSelection();
+    return customerPushSubscription;
+  } catch {
+    return null;
+  }
+}
+
+async function ensureCustomerPushSubscription({ interactive = false } = {}) {
+  if (!pushSupported()) {
+    customerNotificationStatus.textContent = "Push notifications are not supported in this browser.";
+    return null;
+  }
+
+  const config = await loadPublicConfig();
+  if (!config.push_enabled || !config.push_public_key) {
+    customerNotificationStatus.textContent = "Push notifications are not configured yet on the live backend.";
+    return null;
+  }
+
+  const registration = await serviceWorkerReady();
+  const existing = await registration.pushManager.getSubscription();
+  if (existing) {
+    customerPushSubscription = existing.toJSON();
+    updateNotificationSelection();
+    return customerPushSubscription;
+  }
+
+  if (Notification.permission === "denied") {
+    customerNotificationStatus.textContent = "Notifications are blocked in this browser. Re-enable them in browser settings to use push updates.";
+    return null;
+  }
+
+  if (interactive && Notification.permission !== "granted") {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      customerNotificationStatus.textContent = "Push notifications were not enabled on this device.";
+      updateNotificationSelection();
+      return null;
+    }
+  }
+
+  if (Notification.permission !== "granted") {
+    updateNotificationSelection();
+    return null;
+  }
+
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(config.push_public_key)
+  });
+  customerPushSubscription = subscription.toJSON();
+  customerNotificationStatus.textContent = "Push notifications are enabled on this device.";
+  updateNotificationSelection();
+  return customerPushSubscription;
+}
+
+async function ensureNotificationPreferenceReady({ interactive = false } = {}) {
+  const preference = getNotificationPreference();
+  if (!notificationWantsPush(preference)) {
+    updateNotificationSelection();
+    return true;
+  }
+
+  const subscription = await ensureCustomerPushSubscription({ interactive });
+  if (!notificationRequiresPush(preference)) {
+    return true;
+  }
+
+  const ready = Boolean(subscription);
+  if (!ready) {
+    customerNotificationStatus.textContent = "Push-only requests need notifications enabled on this device before they can be sent.";
+  }
+  updateFinalSubmitState();
+  return ready;
+}
+
+function getDisplayTotalPrice() {
+  return String(priceSummary().total || priceSummary().packagePrice || 0);
 }
 
 function loadSquareScript(environment) {
@@ -955,6 +1174,11 @@ async function submitRequest() {
     liabilityAcceptance.focus();
     return;
   }
+  if (!(await ensureNotificationPreferenceReady({ interactive: notificationWantsPush() }))) {
+    goToStep(3);
+    setRequestStatus("Enable push notifications on this device or switch to SMS before sending the request.");
+    return;
+  }
   const request = getRequestData();
   request.paymentPreference = getSelectedPaymentPreference();
   saveRequest(request);
@@ -1041,16 +1265,17 @@ secondaryTimeSelect.addEventListener("change", () => {
   toggleCustomTimeField(secondaryTimeSelect, secondaryCustomTimeField);
 });
 
-enableCustomerNotificationsButton.addEventListener("click", async () => {
-  if (!("Notification" in window)) {
-    customerNotificationStatus.textContent = "Notifications are not supported in this browser.";
-    return;
-  }
+notificationPreferenceInputs.forEach((input) => {
+  input.addEventListener("change", async () => {
+    updateNotificationSelection();
+    if (notificationWantsPush()) {
+      await ensureNotificationPreferenceReady({ interactive: input.value === "push" });
+    }
+  });
+});
 
-  const permission = await Notification.requestPermission();
-  customerNotificationStatus.textContent = permission === "granted"
-    ? "Notifications are enabled on this device."
-    : "Notifications were not enabled. You can allow them later in browser settings.";
+enableCustomerNotificationsButton.addEventListener("click", async () => {
+  await ensureCustomerPushSubscription({ interactive: true });
 });
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -1075,6 +1300,9 @@ if ("serviceWorker" in navigator) {
 
 window.addEventListener("load", () => {
   formStartedAtInput.value = new Date().toISOString();
+  if (pushSupported()) {
+    serviceWorkerReady().then(hydrateExistingPushSubscription).catch(() => {});
+  }
   window.setTimeout(() => {
     splashScreen.classList.add("hidden");
     document.body.classList.remove("splash-lock");
@@ -1093,9 +1321,11 @@ function showPaymentReturnState() {
 updateTierSelection();
 updateFocusSelection();
 updatePaymentSelection();
+updateNotificationSelection();
 refreshCustomTimeFields();
 updateFinalSubmitState();
 goToStep(0);
 renderRequests();
 renderMemberHeader();
+applyMemberDefaults();
 applyPendingRebook();
