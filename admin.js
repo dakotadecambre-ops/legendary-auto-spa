@@ -121,6 +121,7 @@ function setLoggedIn(loggedIn) {
 }
 
 function clearAdminSession(message = "Admin session expired. Log in again.") {
+  void removeAdminPushSubscription({ localOnly: true });
   localStorage.removeItem(ADMIN_TOKEN_KEY);
   setLoggedIn(false);
   adminPassword.value = "";
@@ -160,6 +161,142 @@ async function api(path, options = {}) {
   return data;
 }
 
+async function publicConfig() {
+  const result = await fetch("/.netlify/functions/public-config");
+  const data = await result.json().catch(() => ({}));
+  if (!result.ok) {
+    throw new Error(data.error || "Could not load public config");
+  }
+  return data;
+}
+
+function supportsAdminPush() {
+  return "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
+}
+
+function isAppleMobileDevice() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
+function isStandaloneApp() {
+  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+
+function adminPushDeviceLabel() {
+  return [
+    navigator.platform || "",
+    navigator.userAgent.includes("Mobile") ? "mobile" : "desktop"
+  ].filter(Boolean).join(" · ");
+}
+
+function urlBase64ToUint8Array(value) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  return Uint8Array.from(raw, (char) => char.charCodeAt(0));
+}
+
+async function ensureAdminServiceWorker() {
+  await navigator.serviceWorker.register("service-worker.js");
+  return navigator.serviceWorker.ready;
+}
+
+function adminPushReadyMessage() {
+  if (isAppleMobileDevice()) {
+    return "Admin push alerts are enabled on this device. On iPhone and iPad, background alerts only work from the Home Screen app.";
+  }
+  return "Admin push alerts are enabled on this device.";
+}
+
+async function ensureAdminPushSubscription({ prompt = false, announce = false } = {}) {
+  if (!token()) return false;
+
+  if (!supportsAdminPush()) {
+    if (announce) {
+      adminActionStatus.textContent = "This browser does not support background web push for the admin dashboard.";
+    }
+    return false;
+  }
+
+  if (isAppleMobileDevice() && !isStandaloneApp()) {
+    if (announce) {
+      adminActionStatus.textContent = "On iPhone and iPad, add the admin app to the Home Screen first. Background alerts do not work from a normal browser tab.";
+    }
+    return false;
+  }
+
+  const config = await publicConfig();
+  if (!config.push_enabled || !config.push_public_key) {
+    if (announce) {
+      adminActionStatus.textContent = "Admin push alerts are not configured on the backend yet.";
+    }
+    return false;
+  }
+
+  let permission = Notification.permission;
+  if (prompt && permission !== "granted") {
+    permission = await Notification.requestPermission();
+  }
+
+  if (permission !== "granted") {
+    if (announce) {
+      adminActionStatus.textContent = permission === "denied"
+        ? "Browser notifications are blocked for this device."
+        : "Admin push alerts were not enabled.";
+    }
+    return false;
+  }
+
+  const registration = await ensureAdminServiceWorker();
+  let subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(config.push_public_key)
+    });
+  }
+
+  await api("admin-push-subscription", {
+    method: "POST",
+    body: JSON.stringify({
+      subscription: subscription.toJSON ? subscription.toJSON() : subscription,
+      device_label: adminPushDeviceLabel(),
+      user_agent: navigator.userAgent
+    })
+  });
+
+  if (announce) {
+    adminActionStatus.textContent = adminPushReadyMessage();
+  }
+  return true;
+}
+
+async function removeAdminPushSubscription({ localOnly = false } = {}) {
+  if (!("serviceWorker" in navigator)) return;
+  const registration = await navigator.serviceWorker.getRegistration();
+  if (!registration?.pushManager) return;
+
+  const subscription = await registration.pushManager.getSubscription();
+  if (!subscription) return;
+
+  if (!localOnly && token()) {
+    try {
+      await api("admin-push-subscription", {
+        method: "DELETE",
+        body: JSON.stringify({ endpoint: subscription.endpoint })
+      });
+    } catch (error) {
+      console.warn("Admin push unsubscribe sync failed", error.message);
+    }
+  }
+
+  try {
+    await subscription.unsubscribe();
+  } catch (error) {
+    console.warn("Admin push local unsubscribe failed", error.message);
+  }
+}
+
 adminLoginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   adminStatus.textContent = "Checking admin access...";
@@ -178,6 +315,7 @@ adminLoginForm.addEventListener("submit", async (event) => {
     await loadBookings();
     renderMembers();
     startBookingPolling();
+    await ensureAdminPushSubscription();
   } catch (error) {
     adminStatus.textContent = error.message;
   }
@@ -191,7 +329,8 @@ refreshBookingsButton.addEventListener("click", async () => {
   renderMembers();
 });
 
-logoutButton.addEventListener("click", () => {
+logoutButton.addEventListener("click", async () => {
+  await removeAdminPushSubscription();
   clearAdminSession("");
 });
 
@@ -248,22 +387,11 @@ async function loadBookings(options = {}) {
 }
 
 async function requestAdminNotificationPermission() {
-  if (!("Notification" in window)) {
-    adminActionStatus.textContent = "Browser alerts are not supported in this browser.";
-    return;
+  try {
+    await ensureAdminPushSubscription({ prompt: true, announce: true });
+  } catch (error) {
+    adminActionStatus.textContent = error.message;
   }
-
-  const permission = await Notification.requestPermission();
-  if (permission === "granted") {
-    new Notification("Legendary Auto Spa alerts enabled", {
-      body: "Leave this admin dashboard open to receive new request alerts.",
-      icon: "assets/icon.svg",
-      tag: "legendary-alerts-enabled"
-    });
-  }
-  adminActionStatus.textContent = permission === "granted"
-    ? "Admin browser alerts are enabled. New requests are checked about every 10 seconds while this dashboard is open."
-    : "Admin browser alerts were not enabled.";
 }
 
 function notifyNewBookings(bookings) {
@@ -288,15 +416,6 @@ function notifyNewBookings(bookings) {
     document.title = "Legendary Admin";
   }, 15000);
 
-  if (!("Notification" in window) || Notification.permission !== "granted") return;
-
-  newBookings.forEach((booking) => {
-    new Notification("New Legendary Auto Spa request", {
-      body: `${booking.customer_name || "Customer"} requested ${booking.service_tier || "a detail"} for ${booking.preferred_date || "a new date"}.`,
-      icon: "assets/icon.svg",
-      tag: `booking-${booking.id}`
-    });
-  });
 }
 
 function startBookingPolling() {
@@ -1089,18 +1208,23 @@ function escapeAttribute(value) {
   return escapeHtml(value).replaceAll("'", "&#39;");
 }
 
-if (token() && sessionIsValid()) {
-  setLoggedIn(true);
-  loadHealth();
-  if (hasAdminRole(["admin"])) loadAdminUsers();
-  loadActivity();
-  loadBookings();
-  renderMembers();
-  startBookingPolling();
-} else {
-  if (token()) {
-    clearAdminSession("Admin session expired. Log in again.");
+bootstrapAdmin();
+
+async function bootstrapAdmin() {
+  if (token() && sessionIsValid()) {
+    setLoggedIn(true);
+    await loadHealth();
+    if (hasAdminRole(["admin"])) await loadAdminUsers();
+    await loadActivity();
+    await loadBookings();
+    renderMembers();
+    startBookingPolling();
+    await ensureAdminPushSubscription();
   } else {
-    setLoggedIn(false);
+    if (token()) {
+      clearAdminSession("Admin session expired. Log in again.");
+    } else {
+      setLoggedIn(false);
+    }
   }
 }

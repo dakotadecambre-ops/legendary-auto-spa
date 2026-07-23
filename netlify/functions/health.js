@@ -57,6 +57,13 @@ exports.handler = async (event) => {
       ok: Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER && process.env.ADMIN_SMS_TO),
       label: "SMS notifications",
       detail: process.env.TWILIO_ACCOUNT_SID ? "Twilio account setting is present." : "Missing Twilio SMS settings."
+    },
+    push_notifications: {
+      ok: Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.VAPID_SUBJECT),
+      label: "Push notifications",
+      detail: process.env.VAPID_PUBLIC_KEY
+        ? "VAPID web push keys are configured."
+        : "Missing VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, or VAPID_SUBJECT."
     }
   };
 
@@ -184,6 +191,10 @@ async function checkRequiredSchema() {
     {
       table: "member_sessions",
       columns: ["id", "member_id", "token_hash", "user_agent", "expires_at", "created_at", "last_seen_at"]
+    },
+    {
+      table: "admin_push_subscriptions",
+      columns: ["id", "admin_id", "admin_email", "endpoint", "subscription", "user_agent", "device_label", "active", "last_seen_at", "created_at", "updated_at"]
     }
   ];
 

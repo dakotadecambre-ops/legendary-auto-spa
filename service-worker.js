@@ -1,6 +1,7 @@
-const CACHE_NAME = "legendary-auto-spa-v24";
+const CACHE_NAME = "legendary-auto-spa-v25";
 const APP_SHELL = [
   "./",
+  "./admin.html",
   "./index.html",
   "./member.html",
   "./member-portal.html",
@@ -10,7 +11,9 @@ const APP_SHELL = [
   "./rebook-confirm.html",
   "./disclosures.html",
   "./styles.css",
+  "./admin.css",
   "./app.js",
+  "./admin.js",
   "./member.js",
   "./member-portal.js",
   "./create-member.js",
@@ -64,5 +67,48 @@ self.addEventListener("fetch", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(clients.openWindow("/admin"));
+  const destination = event.notification.data?.url || "/admin";
+  event.waitUntil(focusOrOpen(destination));
 });
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data?.json() || {};
+  } catch {
+    payload = {
+      title: "Legendary Auto Spa",
+      body: event.data?.text() || "A new update is available."
+    };
+  }
+
+  const title = payload.title || "Legendary Auto Spa";
+  const options = {
+    body: payload.body || "A new update is available.",
+    icon: payload.icon || "/assets/icon.svg",
+    badge: payload.badge || "/assets/icon.svg",
+    tag: payload.tag || "legendary-admin",
+    data: payload.data || { url: payload.url || "/admin" },
+    renotify: true
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+async function focusOrOpen(url) {
+  const clientList = await clients.matchAll({ type: "window", includeUncontrolled: true });
+  const targetPath = new URL(url, self.location.origin).pathname;
+
+  for (const client of clientList) {
+    const clientUrl = new URL(client.url);
+    if (clientUrl.pathname === targetPath && "focus" in client) {
+      return client.focus();
+    }
+  }
+
+  if (clients.openWindow) {
+    return clients.openWindow(url);
+  }
+
+  return undefined;
+}

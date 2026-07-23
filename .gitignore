@@ -2,5 +2,6 @@
 .env
 *.swp
 *.swo
+node_modules/
 legendary-auto-spa-app.zip
 legendary-auto-spa-app/

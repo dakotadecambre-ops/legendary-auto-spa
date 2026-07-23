@@ -1,10 +1,11 @@
 const crypto = require("crypto");
+const webpush = require("web-push");
 
 const jsonHeaders = {
   "content-type": "application/json",
   "access-control-allow-origin": "*",
   "access-control-allow-headers": "content-type, authorization",
-  "access-control-allow-methods": "GET, POST, PATCH, OPTIONS"
+  "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS"
 };
 
 function response(statusCode, body) {
@@ -381,6 +382,9 @@ async function sendNotifications(booking) {
   ) {
     tasks.push(notificationTask("sms", () => sendSmsNotification(booking)));
   }
+  if (pushConfigured()) {
+    tasks.push(notificationTask("push", () => sendPushNotification(booking)));
+  }
 
   return Promise.all(tasks);
 }
@@ -390,12 +394,16 @@ function notificationConfigStatus() {
     .filter((key) => !process.env[key]);
   const smsMissing = ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER", "ADMIN_SMS_TO"]
     .filter((key) => !process.env[key]);
+  const pushMissing = ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"]
+    .filter((key) => !process.env[key]);
 
   return {
     email_ready: !emailMissing.length,
     sms_ready: !smsMissing.length,
+    push_ready: !pushMissing.length,
     email_missing: emailMissing,
-    sms_missing: smsMissing
+    sms_missing: smsMissing,
+    push_missing: pushMissing
   };
 }
 
@@ -474,6 +482,124 @@ async function sendSmsNotification(booking) {
     message: `SMS notification sent to ${results.length} admin number${results.length === 1 ? "" : "s"}`,
     provider_id: results.map((result) => result.provider_id).filter(Boolean).join(",")
   };
+}
+
+function pushConfigured() {
+  return Boolean(
+    process.env.VAPID_PUBLIC_KEY &&
+    process.env.VAPID_PRIVATE_KEY &&
+    process.env.VAPID_SUBJECT
+  );
+}
+
+function configureWebPush() {
+  if (!pushConfigured()) return false;
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT,
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+  return true;
+}
+
+async function saveAdminPushSubscription(admin, subscription, meta = {}) {
+  if (!subscription?.endpoint) throw new Error("Push subscription endpoint is required");
+
+  const now = new Date().toISOString();
+  const rows = await supabaseFetch("admin_push_subscriptions?on_conflict=endpoint", {
+    method: "POST",
+    headers: { prefer: "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify({
+      admin_id: admin?.id || null,
+      admin_email: clean(admin?.email),
+      endpoint: clean(subscription.endpoint),
+      subscription,
+      user_agent: clean(meta.user_agent),
+      device_label: clean(meta.device_label),
+      active: true,
+      last_seen_at: now,
+      updated_at: now,
+      created_at: meta.created_at || now
+    })
+  });
+
+  return rows?.[0] || null;
+}
+
+async function deleteAdminPushSubscription(endpoint) {
+  const cleanEndpoint = clean(endpoint);
+  if (!cleanEndpoint) return;
+  await supabaseFetch(`admin_push_subscriptions?endpoint=eq.${encodeURIComponent(cleanEndpoint)}`, {
+    method: "DELETE",
+    headers: { prefer: "return=minimal" }
+  });
+}
+
+async function sendPushNotification(booking) {
+  configureWebPush();
+
+  const subscriptions = await supabaseFetch(
+    "admin_push_subscriptions?select=id,endpoint,subscription,admin_email,device_label&active=eq.true",
+    { method: "GET" }
+  );
+
+  if (!subscriptions?.length) {
+    throw new Error("No admin devices have push alerts enabled");
+  }
+
+  const payload = JSON.stringify({
+    title: booking.id === "notification-test"
+      ? "Legendary Auto Spa test alert"
+      : "New Legendary Auto Spa request",
+    body: booking.id === "notification-test"
+      ? "Push notifications are working on this device."
+      : `${booking.customer_name || "Customer"} requested ${booking.service_tier || "a detail"} for ${booking.preferred_date || "a new date"} at ${booking.preferred_time || "a requested time"}.`,
+    tag: booking.id ? `booking-${booking.id}` : "legendary-admin",
+    icon: "/assets/icon.svg",
+    badge: "/assets/icon.svg",
+    url: booking.admin_url || "/admin",
+    data: {
+      booking_id: booking.id || "",
+      url: booking.admin_url || "/admin"
+    }
+  });
+
+  const results = await Promise.all(subscriptions.map((row) => sendPushToSubscription(row, payload)));
+  const delivered = results.filter((result) => result.ok);
+  const failed = results.filter((result) => !result.ok);
+
+  if (!delivered.length && failed.length) {
+    throw new Error(failed[0].message || "Push notification failed");
+  }
+
+  return {
+    ok: true,
+    message: `Push notification sent to ${delivered.length} device${delivered.length === 1 ? "" : "s"}${failed.length ? ` (${failed.length} failed)` : ""}`,
+    provider_id: delivered.map((result) => result.provider_id).filter(Boolean).join(",")
+  };
+}
+
+async function sendPushToSubscription(row, payload) {
+  try {
+    await webpush.sendNotification(row.subscription, payload);
+    return {
+      ok: true,
+      provider_id: row.id || row.endpoint
+    };
+  } catch (error) {
+    if (error?.statusCode === 404 || error?.statusCode === 410) {
+      try {
+        await deleteAdminPushSubscription(row.endpoint);
+      } catch (cleanupError) {
+        console.error("Push subscription cleanup failed", cleanupError.message);
+      }
+    }
+
+    return {
+      ok: false,
+      message: error?.body || error?.message || "Push notification failed"
+    };
+  }
 }
 
 async function sendCustomerBookingUpdateNotification(booking, changedFields) {
@@ -775,6 +901,9 @@ module.exports = {
   verifyMemberToken,
   requireActiveMember,
   requireActiveAdmin,
+  pushConfigured,
+  saveAdminPushSubscription,
+  deleteAdminPushSubscription,
   hashPassword,
   verifyPassword,
   adminSelectFields,

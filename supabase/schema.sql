@@ -210,6 +210,24 @@ create table if not exists public.member_sessions (
 create index if not exists member_sessions_member_id_idx on public.member_sessions (member_id);
 create index if not exists member_sessions_expires_at_idx on public.member_sessions (expires_at);
 
+create table if not exists public.admin_push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  admin_id uuid references public.admin_users (id) on delete cascade,
+  admin_email text not null,
+  endpoint text not null unique,
+  subscription jsonb not null,
+  user_agent text,
+  device_label text,
+  active boolean not null default true,
+  last_seen_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists admin_push_subscriptions_admin_id_idx on public.admin_push_subscriptions (admin_id);
+create index if not exists admin_push_subscriptions_active_idx on public.admin_push_subscriptions (active);
+create index if not exists admin_push_subscriptions_last_seen_at_idx on public.admin_push_subscriptions (last_seen_at desc);
+
 create or replace view public.legendary_member_schema_constraints as
 select table_name
 from information_schema.tables
@@ -240,6 +258,7 @@ alter table public.member_accounts enable row level security;
 alter table public.member_vehicles enable row level security;
 alter table public.member_locations enable row level security;
 alter table public.member_sessions enable row level security;
+alter table public.admin_push_subscriptions enable row level security;
 
 drop policy if exists "No direct anonymous booking access" on public.bookings;
 create policy "No direct anonymous booking access"
@@ -258,6 +277,13 @@ with check (false);
 drop policy if exists "No direct anonymous vehicle access" on public.vehicles;
 create policy "No direct anonymous vehicle access"
 on public.vehicles
+for all
+using (false)
+with check (false);
+
+drop policy if exists "No direct anonymous admin push access" on public.admin_push_subscriptions;
+create policy "No direct anonymous admin push access"
+on public.admin_push_subscriptions
 for all
 using (false)
 with check (false);
