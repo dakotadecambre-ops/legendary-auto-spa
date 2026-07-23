@@ -15,7 +15,8 @@ const {
   mapSquarePaymentStatus,
   sendNotifications,
   notificationConfigStatus,
-  logBookingEvent
+  logBookingEvent,
+  saveCustomerPushSubscription
 } = require("./_shared");
 
 exports.handler = async (event) => {
@@ -66,6 +67,7 @@ exports.handler = async (event) => {
     });
     let savedBooking = inserted?.[0] || booking;
     const relatedRecords = await safeCreateRelatedBookingRecords(savedBooking, booking);
+    await safeSaveCustomerPushSubscription(savedBooking, input);
     let authorizedPayment = null;
 
     if (wantsPayment && paymentReady && paymentSourceId) {
@@ -215,6 +217,27 @@ async function safeCreateRelatedBookingRecords(savedBooking, booking) {
       message: error.message
     });
     return {};
+  }
+}
+
+async function safeSaveCustomerPushSubscription(savedBooking, input) {
+  try {
+    if (!input?.pushSubscription?.endpoint || !savedBooking?.phone) return;
+
+    const members = await supabaseFetch(
+      `member_accounts?select=id&phone=eq.${encodeURIComponent(savedBooking.phone)}&limit=1`,
+      { method: "GET" }
+    );
+    await saveCustomerPushSubscription({
+      phone: savedBooking.phone,
+      memberId: members?.[0]?.id || null,
+      notificationPreference: input.notificationPreference,
+      subscription: input.pushSubscription,
+      userAgent: input.pushUserAgent,
+      deviceLabel: input.pushDeviceLabel
+    });
+  } catch (error) {
+    console.error("Customer push subscription save failed", error.message);
   }
 }
 

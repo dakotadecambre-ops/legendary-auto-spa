@@ -25,7 +25,7 @@ exports.handler = async function handler(event) {
 
   try {
     const rows = await supabaseFetch(
-      `member_accounts?select=id,name,phone,email,password_hash,active,created_at,updated_at&phone=eq.${encodeURIComponent(phone)}&limit=1`,
+      `member_accounts?select=id,name,phone,email,password_hash,notification_preference,sms_opt_in,push_enabled,active,created_at,updated_at&phone=eq.${encodeURIComponent(phone)}&limit=1`,
       { method: "GET" }
     );
     const member = rows?.[0] || null;
@@ -51,7 +51,7 @@ function normalizePhone(value) {
 async function getMemberProfile(memberId) {
   const [members, vehicles, locations] = await Promise.all([
     supabaseFetch(
-      `member_accounts?select=id,name,phone,email,active,created_at,updated_at&id=eq.${encodeURIComponent(memberId)}&limit=1`,
+      `member_accounts?select=id,name,phone,email,notification_preference,sms_opt_in,push_enabled,active,created_at,updated_at&id=eq.${encodeURIComponent(memberId)}&limit=1`,
       { method: "GET" }
     ),
     supabaseFetch(`member_vehicles?select=id,year,make,model,size,notes,is_default,created_at,updated_at&member_id=eq.${encodeURIComponent(memberId)}&order=created_at.asc`, { method: "GET" }),

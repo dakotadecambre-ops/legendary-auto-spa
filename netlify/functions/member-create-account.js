@@ -6,7 +6,11 @@ const {
   supabaseConfigured,
   setupErrorResponse,
   hashPassword,
-  signMemberToken
+  signMemberToken,
+  normalizeNotificationPreference,
+  smsOptIn,
+  pushEnabled,
+  saveCustomerPushSubscription
 } = require("./_shared");
 
 exports.handler = async function handler(event) {
@@ -32,6 +36,7 @@ exports.handler = async function handler(event) {
     if (existing?.length) return response(409, { error: "That phone already has a member account." });
 
     const now = new Date().toISOString();
+    const notificationPreference = normalizeNotificationPreference(input.notificationPreference);
     const rows = await supabaseFetch("member_accounts", {
       method: "POST",
       body: JSON.stringify({
@@ -39,6 +44,9 @@ exports.handler = async function handler(event) {
         phone,
         email: clean(input.email),
         password_hash: hashPassword(password),
+        notification_preference: notificationPreference,
+        sms_opt_in: smsOptIn(input.smsOptIn, notificationPreference),
+        push_enabled: pushEnabled(input.pushEnabled, notificationPreference),
         active: true,
         created_at: now,
         updated_at: now
@@ -49,6 +57,7 @@ exports.handler = async function handler(event) {
 
     await replaceMemberVehicles(member.id, normalizeVehicles(input.vehicles || input.vehicle));
     await replaceMemberLocations(member.id, normalizeLocations(input.locations || input.location));
+    await saveMemberPushSubscription(member, input);
 
     const profile = await getMemberProfile(member.id);
     return response(200, {
@@ -129,7 +138,7 @@ async function replaceMemberLocations(memberId, locations) {
 
 async function getMemberProfile(memberId) {
   const members = await supabaseFetch(
-    `member_accounts?select=id,name,phone,email,active,created_at,updated_at&id=eq.${encodeURIComponent(memberId)}&limit=1`,
+    `member_accounts?select=id,name,phone,email,notification_preference,sms_opt_in,push_enabled,active,created_at,updated_at&id=eq.${encodeURIComponent(memberId)}&limit=1`,
     { method: "GET" }
   );
   const member = members?.[0] || null;
@@ -139,4 +148,16 @@ async function getMemberProfile(memberId) {
     supabaseFetch(`member_locations?select=id,label,address,notes,is_default,created_at,updated_at&member_id=eq.${encodeURIComponent(memberId)}&order=created_at.asc`, { method: "GET" })
   ]);
   return { ...member, vehicles: vehicles || [], locations: locations || [] };
+}
+
+async function saveMemberPushSubscription(member, input) {
+  if (!input?.pushSubscription?.endpoint || !member?.phone) return;
+  await saveCustomerPushSubscription({
+    phone: member.phone,
+    memberId: member.id,
+    notificationPreference: input.notificationPreference,
+    subscription: input.pushSubscription,
+    userAgent: input.pushUserAgent,
+    deviceLabel: input.pushDeviceLabel
+  });
 }

@@ -35,6 +35,7 @@ function parseJson(event) {
 
 function normalizeBooking(input) {
   const now = new Date().toISOString();
+  const notificationPreference = normalizeNotificationPreference(input.notificationPreference);
   return {
     customer_name: clean(input.name),
     phone: clean(input.phone),
@@ -54,6 +55,9 @@ function normalizeBooking(input) {
     preferred_time: clean(input.time),
     notes: clean(input.notes),
     payment_preference: clean(input.paymentPreference),
+    notification_preference: notificationPreference,
+    sms_opt_in: smsOptIn(input.smsOptIn, notificationPreference),
+    push_enabled: pushEnabled(input.pushEnabled, notificationPreference),
     status: "new",
     payment_status: "not_started",
     created_at: input.createdAt || now,
@@ -64,6 +68,29 @@ function normalizeBooking(input) {
 function clean(value) {
   if (value == null) return "";
   return String(value).trim().slice(0, 1000);
+}
+
+function normalizeNotificationPreference(value, fallback = "sms") {
+  const preference = String(value || fallback).trim().toLowerCase();
+  return ["sms", "push", "both"].includes(preference) ? preference : fallback;
+}
+
+function smsOptIn(value, preference = normalizeNotificationPreference()) {
+  if (typeof value === "boolean") return value;
+  if (value === "true" || value === "on" || value === "yes") return true;
+  if (value === "false" || value === "off" || value === "no") return false;
+  return preference !== "push";
+}
+
+function pushEnabled(value, preference = normalizeNotificationPreference()) {
+  if (typeof value === "boolean") return value;
+  if (value === "true" || value === "on" || value === "yes") return true;
+  if (value === "false" || value === "off" || value === "no") return false;
+  return preference === "push" || preference === "both";
+}
+
+function mergeNotificationPreference(currentValue, nextValue) {
+  return normalizeNotificationPreference(nextValue, normalizeNotificationPreference(currentValue));
 }
 
 function validateBooking(booking) {
@@ -535,6 +562,57 @@ async function deleteAdminPushSubscription(endpoint) {
   });
 }
 
+async function saveCustomerPushSubscription({
+  phone,
+  memberId = null,
+  notificationPreference = "push",
+  subscription,
+  userAgent = "",
+  deviceLabel = ""
+}) {
+  if (!subscription?.endpoint || !phone) return null;
+
+  const now = new Date().toISOString();
+  const rows = await supabaseFetch("customer_push_subscriptions?on_conflict=endpoint", {
+    method: "POST",
+    headers: { prefer: "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify({
+      member_id: memberId || null,
+      phone: clean(phone),
+      endpoint: clean(subscription.endpoint),
+      subscription,
+      notification_preference: normalizeNotificationPreference(notificationPreference, "push") === "both" ? "both" : "push",
+      user_agent: clean(userAgent),
+      device_label: clean(deviceLabel),
+      active: true,
+      last_seen_at: now,
+      updated_at: now,
+      created_at: now
+    })
+  });
+
+  return rows?.[0] || null;
+}
+
+async function findCustomerPushSubscriptions(booking) {
+  const phone = clean(booking?.phone);
+  if (!phone) return [];
+
+  return supabaseFetch(
+    `customer_push_subscriptions?select=id,endpoint,subscription,phone,member_id,device_label&active=eq.true&phone=eq.${encodeURIComponent(phone)}`,
+    { method: "GET" }
+  );
+}
+
+async function deleteCustomerPushSubscription(endpoint) {
+  const cleanEndpoint = clean(endpoint);
+  if (!cleanEndpoint) return;
+  await supabaseFetch(`customer_push_subscriptions?endpoint=eq.${encodeURIComponent(cleanEndpoint)}`, {
+    method: "DELETE",
+    headers: { prefer: "return=minimal" }
+  });
+}
+
 async function sendPushNotification(booking) {
   configureWebPush();
 
@@ -602,22 +680,110 @@ async function sendPushToSubscription(row, payload) {
   }
 }
 
-async function sendCustomerBookingUpdateNotification(booking, changedFields) {
-  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_FROM_NUMBER) {
-    throw new Error("Twilio customer SMS settings are not configured");
+async function sendCustomerPushNotification(booking, notification) {
+  configureWebPush();
+
+  const subscriptions = await findCustomerPushSubscriptions(booking);
+  if (!subscriptions?.length) {
+    throw new Error("No customer devices have push updates enabled");
   }
+
+  const siteBaseUrl = (process.env.PUBLIC_SITE_URL || "").replace(/\/$/, "");
+  const targetUrl = siteBaseUrl ? `${siteBaseUrl}/member-portal.html` : "/member-portal.html";
+  const payload = JSON.stringify({
+    title: notification.title || "Legendary Auto Spa update",
+    body: notification.body || "Your booking was updated.",
+    tag: booking.id ? `${notification.tag || "booking-update"}-${booking.id}` : (notification.tag || "booking-update"),
+    icon: "/assets/icon.svg",
+    badge: "/assets/icon.svg",
+    url: targetUrl,
+    data: {
+      booking_id: booking.id || "",
+      url: targetUrl
+    }
+  });
+
+  const results = await Promise.all(subscriptions.map((row) => sendPushToCustomerSubscription(row, payload)));
+  const delivered = results.filter((result) => result.ok);
+  const failed = results.filter((result) => !result.ok);
+
+  if (!delivered.length && failed.length) {
+    throw new Error(failed[0].message || "Customer push notification failed");
+  }
+
+  return {
+    ok: true,
+    message: `Push notification sent to ${delivered.length} customer device${delivered.length === 1 ? "" : "s"}${failed.length ? ` (${failed.length} failed)` : ""}`,
+    provider_id: delivered.map((result) => result.provider_id).filter(Boolean).join(",")
+  };
+}
+
+async function sendPushToCustomerSubscription(row, payload) {
+  try {
+    await webpush.sendNotification(row.subscription, payload);
+    return {
+      ok: true,
+      provider_id: row.id || row.endpoint
+    };
+  } catch (error) {
+    if (error?.statusCode === 404 || error?.statusCode === 410) {
+      try {
+        await deleteCustomerPushSubscription(row.endpoint);
+      } catch (cleanupError) {
+        console.error("Customer push subscription cleanup failed", cleanupError.message);
+      }
+    }
+
+    return {
+      ok: false,
+      message: error?.body || error?.message || "Customer push notification failed"
+    };
+  }
+}
+
+async function sendCustomerBookingUpdateNotification(booking, notification) {
   if (!booking?.phone) throw new Error("Customer phone number is missing");
 
-  const body = [
-    "Legendary Auto Spa update:",
-    changedFields.map(([label, value]) => `${label}: ${value}`).join("; "),
-    `Current request: ${booking.service_tier} for ${vehicleSizeLabel(booking.vehicle_size)} on ${booking.preferred_date} at ${booking.preferred_time}.`,
-    "Questions? Call 201-665-2625."
-  ].filter(Boolean).join(" ");
+  const preference = normalizeNotificationPreference(booking.notification_preference);
+  const channels = [];
+  const errors = [];
 
-  const result = await sendSmsMessage(booking.phone, body);
-  if (!result.ok) throw new Error(result.message || "Customer SMS update failed");
-  return result;
+  if ((preference === "sms" || preference === "both") && booking.sms_opt_in !== false) {
+    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_FROM_NUMBER) {
+      errors.push(new Error("Twilio customer SMS settings are not configured"));
+    } else {
+      const result = await sendSmsMessage(booking.phone, notification.smsBody || notification.body || "Legendary Auto Spa update");
+      if (result.ok) {
+        channels.push({ channel: "sms", provider_id: result.provider_id || null });
+      } else {
+        errors.push(new Error(result.message || "Customer SMS update failed"));
+      }
+    }
+  }
+
+  if ((preference === "push" || preference === "both") && booking.push_enabled !== false) {
+    if (!pushConfigured()) {
+      errors.push(new Error("Customer push notifications are not configured"));
+    } else {
+      try {
+        const result = await sendCustomerPushNotification(booking, notification);
+        channels.push({ channel: "push", provider_id: result.provider_id || null });
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+  }
+
+  if (!channels.length) {
+    throw errors[0] || new Error("No customer notification channel was available");
+  }
+
+  return {
+    ok: true,
+    message: `Customer update sent via ${channels.map((item) => item.channel).join(" + ")}`,
+    channels,
+    provider_id: channels.map((item) => item.provider_id).filter(Boolean).join(",")
+  };
 }
 
 async function sendSmsMessage(recipient, message) {
@@ -902,8 +1068,13 @@ module.exports = {
   requireActiveMember,
   requireActiveAdmin,
   pushConfigured,
+  normalizeNotificationPreference,
+  mergeNotificationPreference,
+  smsOptIn,
+  pushEnabled,
   saveAdminPushSubscription,
   deleteAdminPushSubscription,
+  saveCustomerPushSubscription,
   hashPassword,
   verifyPassword,
   adminSelectFields,

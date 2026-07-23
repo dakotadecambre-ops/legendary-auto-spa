@@ -5,7 +5,11 @@ const {
   supabaseFetch,
   supabaseConfigured,
   setupErrorResponse,
-  requireActiveMember
+  requireActiveMember,
+  normalizeNotificationPreference,
+  smsOptIn,
+  pushEnabled,
+  saveCustomerPushSubscription
 } = require("./_shared");
 
 exports.handler = async function handler(event) {
@@ -20,7 +24,7 @@ exports.handler = async function handler(event) {
     if (event.httpMethod === "PATCH") {
       const input = parseJson(event);
       if (!input) return response(400, { error: "Invalid JSON body" });
-      await updateMember(member.id, input);
+      await updateMember(member, input);
     }
 
     const profile = await getMemberProfile(member.id);
@@ -63,16 +67,36 @@ function normalizeLocations(value) {
     .slice(0, 12);
 }
 
-async function updateMember(memberId, input) {
+async function updateMember(member, input) {
+  const memberId = member.id;
   const now = new Date().toISOString();
+  const nextPreference = input.notificationPreference
+    ? normalizeNotificationPreference(input.notificationPreference)
+    : undefined;
   await supabaseFetch(`member_accounts?id=eq.${encodeURIComponent(memberId)}`, {
     method: "PATCH",
     body: JSON.stringify({
       name: clean(input.name),
       email: clean(input.email),
+      ...(nextPreference ? {
+        notification_preference: nextPreference,
+        sms_opt_in: smsOptIn(input.smsOptIn, nextPreference),
+        push_enabled: pushEnabled(input.pushEnabled, nextPreference)
+      } : {}),
       updated_at: now
     })
   });
+
+  if (input?.pushSubscription?.endpoint) {
+    await saveCustomerPushSubscription({
+      phone: member.phone,
+      memberId,
+      notificationPreference: nextPreference || member.notification_preference,
+      subscription: input.pushSubscription,
+      userAgent: input.pushUserAgent,
+      deviceLabel: input.pushDeviceLabel
+    });
+  }
 
   if (Array.isArray(input.vehicles)) {
     await supabaseFetch(`member_vehicles?member_id=eq.${encodeURIComponent(memberId)}`, {
@@ -118,7 +142,7 @@ async function updateMember(memberId, input) {
 async function getMemberProfile(memberId) {
   const [members, vehicles, locations] = await Promise.all([
     supabaseFetch(
-      `member_accounts?select=id,name,phone,email,active,created_at,updated_at&id=eq.${encodeURIComponent(memberId)}&limit=1`,
+      `member_accounts?select=id,name,phone,email,notification_preference,sms_opt_in,push_enabled,active,created_at,updated_at&id=eq.${encodeURIComponent(memberId)}&limit=1`,
       { method: "GET" }
     ),
     supabaseFetch(`member_vehicles?select=id,year,make,model,size,notes,is_default,created_at,updated_at&member_id=eq.${encodeURIComponent(memberId)}&order=created_at.asc`, { method: "GET" }),
@@ -129,7 +153,7 @@ async function getMemberProfile(memberId) {
 
 async function getRecentRequests(phone) {
   return supabaseFetch(
-    `bookings?select=id,customer_name,phone,email,vehicle_year,vehicle_make,vehicle_model,vehicle_size,service_tier,starting_price,focus_area,focus_goal,add_ons,service_address,preferred_date,preferred_time,notes,payment_preference,payment_status,status,created_at&phone=eq.${encodeURIComponent(phone)}&order=created_at.desc&limit=25`,
+    `bookings?select=id,customer_name,phone,email,vehicle_year,vehicle_make,vehicle_model,vehicle_size,service_tier,starting_price,focus_area,focus_goal,add_ons,service_address,preferred_date,preferred_time,notes,payment_preference,notification_preference,sms_opt_in,push_enabled,payment_status,status,created_at&phone=eq.${encodeURIComponent(phone)}&order=created_at.desc&limit=25`,
     { method: "GET" }
   );
 }

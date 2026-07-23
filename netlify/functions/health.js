@@ -105,9 +105,12 @@ async function checkRequiredConstraints() {
   const requiredConstraints = [
     "bookings_status_check",
     "bookings_payment_status_check",
+    "bookings_notification_preference_check",
     "jobs_status_check",
     "jobs_payment_status_check",
-    "admin_users_role_check"
+    "admin_users_role_check",
+    "member_accounts_notification_preference_check",
+    "customer_push_subscriptions_notification_preference_check"
   ];
 
   try {
@@ -125,7 +128,7 @@ async function checkRequiredConstraints() {
     }
     return {
       ok: true,
-      detail: "Required role, booking status, and payment status constraints are installed."
+      detail: "Required role, status, payment, and notification preference constraints are installed."
     };
   } catch (error) {
     return {
@@ -143,7 +146,7 @@ async function checkRequiredSchema() {
         "id", "customer_name", "phone", "email", "vehicle_year", "vehicle_make", "vehicle_model",
         "vehicle_size", "service_tier", "starting_price", "focus_area", "focus_goal",
         "recommended_tier", "add_ons", "service_address", "preferred_date", "preferred_time",
-        "notes", "payment_preference", "payment_status", "payment_intent_id", "status",
+        "notes", "payment_preference", "notification_preference", "sms_opt_in", "push_enabled", "payment_status", "payment_intent_id", "status",
         "assigned_to", "private_notes", "created_at", "updated_at"
       ]
     },
@@ -178,7 +181,7 @@ async function checkRequiredSchema() {
     },
     {
       table: "member_accounts",
-      columns: ["id", "name", "phone", "email", "password_hash", "active", "created_at", "updated_at"]
+      columns: ["id", "name", "phone", "email", "password_hash", "notification_preference", "sms_opt_in", "push_enabled", "active", "created_at", "updated_at"]
     },
     {
       table: "member_vehicles",
@@ -195,6 +198,10 @@ async function checkRequiredSchema() {
     {
       table: "admin_push_subscriptions",
       columns: ["id", "admin_id", "admin_email", "endpoint", "subscription", "user_agent", "device_label", "active", "last_seen_at", "created_at", "updated_at"]
+    },
+    {
+      table: "customer_push_subscriptions",
+      columns: ["id", "member_id", "phone", "endpoint", "subscription", "notification_preference", "user_agent", "device_label", "active", "last_seen_at", "created_at", "updated_at"]
     }
   ];
 
@@ -211,6 +218,6 @@ async function checkRequiredSchema() {
 
   return {
     ok: true,
-    detail: "Required booking, admin, and member account columns are reachable."
+    detail: "Required booking, member, admin, and push subscription columns are reachable."
   };
 }
