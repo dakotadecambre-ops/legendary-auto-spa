@@ -52,12 +52,6 @@ const saveVehicleCheckbox = document.querySelector("#saveVehicleCheckbox");
 const recurringCheckbox = document.querySelector("#recurringCheckbox");
 const recurringFrequencyField = document.querySelector("#recurringFrequencyField");
 const memberMenu = document.querySelector("#memberMenu");
-const memberBookingPanel = document.querySelector("#memberBookingPanel");
-const memberBookingName = document.querySelector("#memberBookingName");
-const savedVehicleField = document.querySelector("#savedVehicleField");
-const savedVehicleSelect = document.querySelector("#savedVehicleSelect");
-const savedLocationField = document.querySelector("#savedLocationField");
-const savedLocationSelect = document.querySelector("#savedLocationSelect");
 const preferredTimeSelect = document.querySelector("#preferredTimeSelect");
 const secondaryTimeSelect = document.querySelector("#secondaryTimeSelect");
 const customTimeField = document.querySelector("#customTimeField");
@@ -69,8 +63,7 @@ let currentStep = 0;
 let squarePayments = null;
 let squareCard = null;
 let squareApplePay = null;
-let pendingPaymentSourceToken = "";
-let pendingPaymentSourceType = "";
+let pendingPaymentBookingId = "";
 let additionalVehicles = [];
 let pendingConfirmationUrl = "confirmation.html";
 
@@ -85,10 +78,6 @@ const vehicleTypeLabels = {
   suvs: "SUV / Crossover",
   trucks: "Truck / Large SUV"
 };
-
-const vehicleLabelToType = Object.fromEntries(
-  Object.entries(vehicleTypeLabels).map(([value, label]) => [label.toLowerCase(), value])
-);
 
 function goToStep(step) {
   currentStep = Math.max(0, Math.min(step, bookingSteps.length - 1));
@@ -125,15 +114,8 @@ function getSelectedVehicleType() {
   return selectedClass?.value || vehicleSizeSelect.value || "cars";
 }
 
-function normalizeVehicleSize(value) {
-  const normalized = String(value || "").trim();
-  if (vehicleTypeLabels[normalized]) return normalized;
-  return vehicleLabelToType[normalized.toLowerCase()] || "cars";
-}
-
 function getTierPrice(input, vehicleType) {
-  const sizeKey = normalizeVehicleSize(vehicleType);
-  return input.dataset[priceDatasetKeys[sizeKey] || "priceCars"] || input.dataset.priceCars;
+  return input.dataset[priceDatasetKeys[vehicleType] || "priceCars"] || input.dataset.priceCars;
 }
 
 function moneyValue(value) {
@@ -197,17 +179,11 @@ function updateTierSelection() {
   tierCards.forEach((card) => {
     const input = card.querySelector("input");
     card.classList.toggle("selected", input.checked);
-    const priceBadge = card.querySelector("[data-tier-price]");
-    if (priceBadge) {
-      const price = getTierPrice(input, getSelectedVehicleType());
-      priceBadge.textContent = vehicleSizeSelect.value ? `$${price}` : `$${getTierPrice(input, "cars")}+`;
-    }
   });
   summaryTier.textContent = tier.name;
   summaryPrice.textContent = tier.displayPrice;
   paymentSummaryTier.textContent = tier.name;
   paymentSummaryPrice.textContent = tier.displayPrice;
-  updateSquarePaymentRequest();
 }
 
 function syncVehicleClass(vehicleType) {
@@ -337,9 +313,7 @@ function updatePaymentSelection() {
     card.classList.toggle("selected", input.checked);
   });
 
-  clearPreparedPayment();
   summaryPayment.textContent = paymentPreference;
-  ensureSquarePaymentForm();
 }
 
 function selectedTimeValue(selectName, customName) {
@@ -528,122 +502,6 @@ async function saveVehicleToMember(request) {
   }
 }
 
-function vehicleDisplayName(vehicle, fallback = "Saved vehicle") {
-  return [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ") || fallback;
-}
-
-function fillField(name, value, overwrite = false) {
-  const field = form.elements[name];
-  if (!field || value == null) return;
-  if (!overwrite && field.value) return;
-  field.value = value;
-}
-
-function applyContactFromMember(account, overwrite = false) {
-  if (!account) return;
-  fillField("name", account.name || "", overwrite);
-  fillField("phone", account.phone || activeMemberPhone(), overwrite);
-  fillField("email", account.email || "", overwrite);
-}
-
-function applySavedVehicle(vehicle, overwrite = true) {
-  if (!vehicle) return;
-  fillField("year", vehicle.year || "", overwrite);
-  fillField("make", vehicle.make || "", overwrite);
-  fillField("model", vehicle.model || "", overwrite);
-  syncVehicleClass(normalizeVehicleSize(vehicle.size));
-  if (vehicle.tier) selectTierByName(vehicle.tier);
-  if (saveVehicleCheckbox) saveVehicleCheckbox.checked = false;
-  setRequestStatus(`${vehicleDisplayName(vehicle)} selected from your saved vehicles.`);
-}
-
-function clearVehicleForNewEntry() {
-  ["year", "make", "model"].forEach((name) => {
-    if (form.elements[name]) form.elements[name].value = "";
-  });
-  syncVehicleClass("cars");
-  if (saveVehicleCheckbox) saveVehicleCheckbox.checked = true;
-  setRequestStatus("Enter the new vehicle details. It can be saved to your member account.");
-}
-
-function applySavedLocation(location, overwrite = true) {
-  if (!location) return;
-  fillField("address", location.address || "", overwrite);
-  const noteParts = [location.label, location.notes].filter(Boolean).join(" - ");
-  if (noteParts) fillField("notes", noteParts, false);
-  setRequestStatus(`${location.label || "Saved location"} added to this booking.`);
-}
-
-function defaultSavedItem(items = []) {
-  return items.find((item) => item.is_default) || items[0] || null;
-}
-
-function populateSavedVehicleSelect(vehicles = []) {
-  if (!savedVehicleField || !savedVehicleSelect) return;
-  savedVehicleField.classList.toggle("hidden", !vehicles.length);
-  if (!vehicles.length) return;
-
-  savedVehicleSelect.innerHTML = [
-    '<option value="">Select saved vehicle</option>',
-    ...vehicles.map((vehicle, index) => `<option value="${index}">${escapeHtml(vehicleDisplayName(vehicle, `Vehicle ${index + 1}`))} - ${escapeHtml(vehicleTypeLabels[normalizeVehicleSize(vehicle.size)] || "Vehicle")}</option>`),
-    '<option value="new">Add a new vehicle</option>'
-  ].join("");
-}
-
-function populateSavedLocationSelect(locations = []) {
-  if (!savedLocationField || !savedLocationSelect) return;
-  savedLocationField.classList.toggle("hidden", !locations.length);
-  if (!locations.length) return;
-
-  savedLocationSelect.innerHTML = [
-    '<option value="">Select saved location</option>',
-    ...locations.map((location, index) => `<option value="${index}">${escapeHtml(location.label || `Location ${index + 1}`)} - ${escapeHtml(location.address || "")}</option>`)
-  ].join("");
-}
-
-function applyMemberBookingPrefill(account, options = {}) {
-  if (!account) return;
-  const vehicles = account.vehicles || [];
-  const locations = account.locations || [];
-
-  if (memberBookingPanel) memberBookingPanel.classList.remove("hidden");
-  if (memberBookingName) memberBookingName.textContent = account.name || formatPhone(account.phone || activeMemberPhone()) || "Member account";
-
-  applyContactFromMember(account, options.overwrite);
-  populateSavedVehicleSelect(vehicles);
-  populateSavedLocationSelect(locations);
-
-  const defaultVehicle = defaultSavedItem(vehicles);
-  const defaultLocation = defaultSavedItem(locations);
-
-  if (defaultVehicle && !form.elements.make.value && !form.elements.model.value) {
-    applySavedVehicle(defaultVehicle, false);
-    savedVehicleSelect.value = String(vehicles.indexOf(defaultVehicle));
-  }
-  if (defaultLocation && !form.elements.address.value) {
-    applySavedLocation(defaultLocation, false);
-    savedLocationSelect.value = String(locations.indexOf(defaultLocation));
-  }
-}
-
-async function refreshMemberBookingProfile() {
-  const account = activeMember();
-  if (account) applyMemberBookingPrefill(account);
-  if (!localStorage.getItem(MEMBER_TOKEN_KEY)) return;
-
-  try {
-    const data = await memberApi("member-profile");
-    if (data.member) {
-      localStorage.setItem(MEMBER_PROFILE_KEY, JSON.stringify(data.member));
-      if (data.member.phone) saveMemberAccount(data.member.phone, data.member);
-      applyMemberBookingPrefill(data.member);
-      renderMemberHeader();
-    }
-  } catch {
-    if (account) setRequestStatus("Using saved member details from this device.");
-  }
-}
-
 function renderMemberHeader() {
   const phone = activeMemberPhone();
   const account = activeMember();
@@ -757,13 +615,6 @@ function formatDisplayDate(value) {
     });
 }
 
-function formatPhone(value) {
-  const digits = String(value || "").replace(/\D/g, "");
-  const local = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
-  if (local.length !== 10) return value || "";
-  return `(${local.slice(0, 3)}) ${local.slice(3, 6)}-${local.slice(6)}`;
-}
-
 function escapeHtml(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")
@@ -795,9 +646,7 @@ function setRequestStatus(message) {
 }
 
 function updateFinalSubmitState() {
-  const paymentPreference = getSelectedPaymentPreference();
-  const needsPreparedApplePay = /apple pay/i.test(paymentPreference);
-  finalSubmitButton.disabled = !liabilityAcceptance.checked || (needsPreparedApplePay && !pendingPaymentSourceToken);
+  finalSubmitButton.disabled = !liabilityAcceptance.checked;
 }
 
 function applyRequestPrefill(request) {
@@ -903,7 +752,7 @@ function loadSquareScript(environment) {
   });
 }
 
-async function mountSquarePayment() {
+async function mountSquarePayment(bookingId) {
   const config = await loadPublicConfig();
   if (!config.square_application_id || !config.square_location_id) {
     throw new Error("Square application ID or location ID is not configured.");
@@ -911,100 +760,46 @@ async function mountSquarePayment() {
 
   await loadSquareScript(config.square_environment);
   squarePayments = window.Square.payments(config.square_application_id, config.square_location_id);
+  pendingPaymentBookingId = bookingId;
 
   paymentElementContainer.innerHTML = "";
   if (applePayElementContainer) applePayElementContainer.innerHTML = "";
 
   squareCard = await squarePayments.card();
   await squareCard.attach("#paymentElement");
-  await setupApplePay();
+
+  if (applePayElementContainer) {
+    try {
+      const paymentRequest = squarePayments.paymentRequest({
+        countryCode: "US",
+        currencyCode: "USD",
+        total: {
+          amount: String((currentTotalAmountCents() / 100).toFixed(2)),
+          label: "Legendary Auto Spa"
+        }
+      });
+      squareApplePay = await squarePayments.applePay(paymentRequest);
+      const applePayButton = document.createElement("button");
+      applePayButton.className = "secondary-button full-width";
+      applePayButton.type = "button";
+      applePayButton.textContent = "Use Apple Pay";
+      applePayButton.addEventListener("click", () => authorizeSquarePayment(squareApplePay));
+      applePayElementContainer.appendChild(applePayButton);
+    } catch {
+      squareApplePay = null;
+    }
+  }
 
   squarePanel.classList.remove("hidden");
-  updatePaymentEntryVisibility();
 }
 
-function squarePaymentRequest() {
-  return squarePayments.paymentRequest({
-    countryCode: "US",
-    currencyCode: "USD",
-    total: {
-      amount: String((currentTotalAmountCents() / 100).toFixed(2)),
-      label: "Legendary Auto Spa"
-    }
-  });
-}
-
-async function setupApplePay() {
-  squareApplePay = null;
-  if (!applePayElementContainer || !squarePayments) return;
-
-  applePayElementContainer.innerHTML = "";
-  try {
-    squareApplePay = await squarePayments.applePay(squarePaymentRequest());
-    const applePayButton = document.createElement("button");
-    applePayButton.className = "apple-pay-button";
-    applePayButton.type = "button";
-    applePayButton.textContent = "Pay with Apple Pay";
-    applePayButton.addEventListener("click", () => preparePaymentSource(squareApplePay, "Apple Pay"));
-    applePayElementContainer.appendChild(applePayButton);
-  } catch {
-    applePayElementContainer.innerHTML = '<p class="payment-helper">Apple Pay is available on supported Apple devices in Safari after this domain is enabled in Square.</p>';
-  }
-}
-
-async function updateSquarePaymentRequest() {
-  if (!squarePayments || !squareApplePay) return;
-  await setupApplePay();
-}
-
-function selectedPaymentNeedsSquare() {
-  return /pre-authorize|apple pay|card/i.test(getSelectedPaymentPreference());
-}
-
-function updatePaymentEntryVisibility() {
-  const preference = getSelectedPaymentPreference();
-  const wantsSquare = selectedPaymentNeedsSquare();
-  const wantsApplePay = /apple pay/i.test(preference);
-  squarePanel.classList.toggle("hidden", !wantsSquare);
-  paymentElementContainer.classList.toggle("hidden", !wantsSquare || wantsApplePay);
-  applePayElementContainer.classList.toggle("hidden", !wantsApplePay);
-  authorizePaymentButton.classList.toggle("hidden", !wantsSquare);
-  authorizePaymentButton.textContent = wantsApplePay
-    ? (pendingPaymentSourceType === "Apple Pay" ? "Apple Pay ready" : "Open Apple Pay")
-    : (pendingPaymentSourceType === "Card" ? "Card ready" : "Save card authorization");
-  updateFinalSubmitState();
-}
-
-async function ensureSquarePaymentForm() {
-  if (!selectedPaymentNeedsSquare()) {
-    squarePanel.classList.add("hidden");
-    return;
-  }
-  if (squareCard && squarePayments) {
-    updatePaymentEntryVisibility();
-    return;
-  }
-  try {
-    await mountSquarePayment();
-    setRequestStatus("Secure payment fields are ready.");
-  } catch (error) {
-    setRequestStatus(`The secure payment form could not load: ${error.message}`);
-  }
-}
-
-function clearPreparedPayment() {
-  pendingPaymentSourceToken = "";
-  pendingPaymentSourceType = "";
-  updateFinalSubmitState();
-}
-
-async function preparePaymentSource(paymentMethod = squareCard, type = "Card") {
-  if (!paymentMethod) {
+async function authorizeSquarePayment(paymentMethod = squareCard) {
+  if (!paymentMethod || !pendingPaymentBookingId) {
     setRequestStatus("Payment form is not ready yet.");
     return;
   }
 
-  authorizePaymentButton.textContent = /apple pay/i.test(type) ? "Opening Apple Pay..." : "Checking card...";
+  authorizePaymentButton.textContent = "Authorizing...";
   authorizePaymentButton.disabled = true;
 
   try {
@@ -1016,21 +811,28 @@ async function preparePaymentSource(paymentMethod = squareCard, type = "Card") {
       throw new Error(message);
     }
 
-    pendingPaymentSourceToken = tokenResult.token;
-    pendingPaymentSourceType = type;
-    setRequestStatus(`${type} is ready. Review the disclosure, then send the request.`);
-    updatePaymentEntryVisibility();
+    const result = await fetch("/.netlify/functions/authorize-payment", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        booking_id: pendingPaymentBookingId,
+        source_id: tokenResult.token
+      })
+    });
+    const data = await result.json().catch(() => ({}));
+    if (!result.ok) throw new Error(data.error || `Payment authorization failed (${result.status})`);
+
+    setRequestStatus("Payment authorized. Opening confirmation...");
+    window.location.href = pendingConfirmationUrl;
   } catch (error) {
-    clearPreparedPayment();
-    setRequestStatus(error.message || "Payment could not be prepared.");
-    updatePaymentEntryVisibility();
-  } finally {
+    setRequestStatus(error.message || "Payment authorization failed.");
+    authorizePaymentButton.textContent = "Authorize payment";
     authorizePaymentButton.disabled = false;
   }
 }
 
 function currentTotalAmountCents() {
-  const total = priceSummary().total;
+  const total = moneyValue(getDisplayTotalPrice());
   return Math.max(1, Math.round(total * 100));
 }
 
@@ -1147,50 +949,36 @@ async function submitRequest() {
     setRequestStatus("Select how often you want the recurring wash.");
     return;
   }
-	  if (!liabilityAcceptance.checked) {
-	    goToStep(3);
-	    setRequestStatus("Read and accept the disclosure terms before sending the request.");
-	    liabilityAcceptance.focus();
-	    return;
-	  }
-	  const request = getRequestData();
-	  request.paymentPreference = getSelectedPaymentPreference();
-	  if (selectedPaymentNeedsSquare()) {
-	    await ensureSquarePaymentForm();
-	    if (/apple pay/i.test(request.paymentPreference) && !pendingPaymentSourceToken) {
-	      goToStep(3);
-	      setRequestStatus("Tap Open Apple Pay first, approve it on your phone, then send the request.");
-	      return;
-	    }
-	    if (!pendingPaymentSourceToken) {
-	      await preparePaymentSource(squareCard, "Card");
-	    }
-	    if (!pendingPaymentSourceToken) {
-	      goToStep(3);
-	      setRequestStatus("Enter valid payment details before sending the request.");
-	      return;
-	    }
-	  }
-	  saveRequest(request);
-	  setRequestStatus("Sending request to Legendary Auto Spa...");
+  if (!liabilityAcceptance.checked) {
+    goToStep(3);
+    setRequestStatus("Read and accept the disclosure terms before sending the request.");
+    liabilityAcceptance.focus();
+    return;
+  }
+  const request = getRequestData();
+  request.paymentPreference = getSelectedPaymentPreference();
+  saveRequest(request);
+  setRequestStatus("Sending request to Legendary Auto Spa...");
 
-	  try {
-	    const apiRequest = pendingPaymentSourceToken
-	      ? {
-	          ...request,
-	          paymentSourceId: pendingPaymentSourceToken,
-	          paymentSourceType: pendingPaymentSourceType
-	        }
-	      : request;
-	    const result = await sendBookingToBackend(apiRequest);
-	    const reference = bookingReference(result);
-	    pendingConfirmationUrl = confirmationUrl(result);
-	    updateSavedRequestReference(request.createdAt, result);
-	    if (result.payment_setup_required) {
-	      window.location.href = pendingConfirmationUrl;
-	      return;
-	    }
-	    window.location.href = pendingConfirmationUrl;
+  try {
+    const result = await sendBookingToBackend(request);
+    const reference = bookingReference(result);
+    pendingConfirmationUrl = confirmationUrl(result);
+    updateSavedRequestReference(request.createdAt, result);
+    if (result.payment?.provider === "square" && result.payment?.booking_id) {
+      try {
+        await mountSquarePayment(result.payment.booking_id);
+        setRequestStatus(`Request received.${reference} Complete the secure payment authorization below.`);
+      } catch (paymentError) {
+        setRequestStatus(`Request received.${reference} The secure payment form could not load: ${paymentError.message}`);
+      }
+      return;
+    }
+    if (result.payment_setup_required) {
+      window.location.href = pendingConfirmationUrl;
+      return;
+    }
+    window.location.href = pendingConfirmationUrl;
   } catch (error) {
     if (error.recoverable) {
       const prefix = error.setupRequired
@@ -1207,13 +995,7 @@ async function submitRequest() {
 finalSubmitButton.addEventListener("click", submitRequest);
 liabilityAcceptance.addEventListener("change", updateFinalSubmitState);
 
-authorizePaymentButton.addEventListener("click", () => {
-  if (/apple pay/i.test(getSelectedPaymentPreference())) {
-    preparePaymentSource(squareApplePay, "Apple Pay");
-    return;
-  }
-  preparePaymentSource(squareCard, "Card");
-});
+authorizePaymentButton.addEventListener("click", () => authorizeSquarePayment(squareCard));
 
 saveDraftButton.addEventListener("click", () => {
   const request = getRequestData();
@@ -1240,24 +1022,6 @@ locateButton.addEventListener("click", () => {
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
   );
-});
-
-savedVehicleSelect?.addEventListener("change", () => {
-  const account = activeMember();
-  if (!account) return;
-  if (savedVehicleSelect.value === "new") {
-    clearVehicleForNewEntry();
-    return;
-  }
-  const vehicle = (account.vehicles || [])[Number(savedVehicleSelect.value)];
-  if (vehicle) applySavedVehicle(vehicle);
-});
-
-savedLocationSelect?.addEventListener("change", () => {
-  const account = activeMember();
-  if (!account) return;
-  const location = (account.locations || [])[Number(savedLocationSelect.value)];
-  if (location) applySavedLocation(location);
 });
 
 form.querySelectorAll("input[name='addOns']").forEach((input) => {
@@ -1334,5 +1098,4 @@ updateFinalSubmitState();
 goToStep(0);
 renderRequests();
 renderMemberHeader();
-refreshMemberBookingProfile();
 applyPendingRebook();

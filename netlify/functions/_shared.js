@@ -457,15 +457,17 @@ async function sendSmsNotification(booking) {
   const recipients = notificationRecipients(process.env.ADMIN_SMS_TO);
   if (!recipients.length) throw new Error("No admin SMS recipients are configured");
 
-  const auth = Buffer
-    .from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`)
-    .toString("base64");
-
-  const results = await Promise.all(recipients.map((recipient) => sendSmsToRecipient(booking, recipient, auth)));
+  const results = await Promise.all(recipients.map((recipient) => sendSmsMessage(recipient, [
+    `New Legendary request: ${booking.customer_name}`,
+    `${booking.service_tier} ${booking.starting_price}`,
+    `${booking.vehicle_size}: ${[booking.vehicle_year, booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(" ")}`,
+    booking.add_ons ? `Add-ons: ${booking.add_ons}` : null,
+    `${booking.preferred_date} ${booking.preferred_time}`,
+    booking.phone,
+    booking.admin_url || null
+  ].filter(Boolean).join(" | "))));
   const failed = results.filter((result) => !result.ok);
-  if (failed.length) {
-    throw new Error(`SMS notification failed for ${failed.length} admin number${failed.length === 1 ? "" : "s"}`);
-  }
+  if (failed.length) throw new Error(`SMS notification failed for ${failed.length} admin number${failed.length === 1 ? "" : "s"}`);
 
   return {
     ok: true,
@@ -474,19 +476,33 @@ async function sendSmsNotification(booking) {
   };
 }
 
-async function sendSmsToRecipient(booking, recipient, auth) {
+async function sendCustomerBookingUpdateNotification(booking, changedFields) {
+  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_FROM_NUMBER) {
+    throw new Error("Twilio customer SMS settings are not configured");
+  }
+  if (!booking?.phone) throw new Error("Customer phone number is missing");
+
+  const body = [
+    "Legendary Auto Spa update:",
+    changedFields.map(([label, value]) => `${label}: ${value}`).join("; "),
+    `Current request: ${booking.service_tier} for ${vehicleSizeLabel(booking.vehicle_size)} on ${booking.preferred_date} at ${booking.preferred_time}.`,
+    "Questions? Call 201-665-2625."
+  ].filter(Boolean).join(" ");
+
+  const result = await sendSmsMessage(booking.phone, body);
+  if (!result.ok) throw new Error(result.message || "Customer SMS update failed");
+  return result;
+}
+
+async function sendSmsMessage(recipient, message) {
   const body = new URLSearchParams();
   body.set("From", process.env.TWILIO_FROM_NUMBER);
   body.set("To", recipient);
-  body.set("Body", [
-    `Pending Legendary request: ${booking.customer_name}`,
-    `${booking.service_tier} ${booking.starting_price}`,
-    `${booking.vehicle_size}: ${[booking.vehicle_year, booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(" ")}`,
-    booking.add_ons ? `Add-ons: ${booking.add_ons}` : null,
-    `${booking.preferred_date} ${booking.preferred_time}`,
-    booking.phone,
-    booking.admin_url || null
-  ].filter(Boolean).join(" | "));
+  body.set("Body", message);
+
+  const auth = Buffer
+    .from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`)
+    .toString("base64");
 
   const result = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`, {
     method: "POST",
@@ -504,6 +520,7 @@ async function sendSmsToRecipient(booking, recipient, auth) {
       message: data?.message || "SMS notification failed"
     };
   }
+
   return {
     ok: true,
     message: "SMS notification sent",
@@ -516,6 +533,13 @@ function notificationRecipients(value) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function vehicleSizeLabel(value) {
+  if (value === "cars") return "Car / Sedan / Coupe";
+  if (value === "suvs") return "SUV / Crossover";
+  if (value === "trucks") return "Truck / Large SUV";
+  return value || "vehicle";
 }
 
 async function logBookingEvent(event) {
@@ -742,6 +766,7 @@ module.exports = {
   completeSquarePayment,
   mapSquarePaymentStatus,
   sendNotifications,
+  sendCustomerBookingUpdateNotification,
   notificationConfigStatus,
   logBookingEvent,
   signAdminToken,

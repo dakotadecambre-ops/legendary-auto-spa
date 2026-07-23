@@ -51,8 +51,19 @@
   justify-content: space-between;
 }
 
+.admin-toolbar {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .admin-actions {
-  justify-content: flex-end;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.admin-actions .secondary-button {
+  flex: 1 1 160px;
+  min-width: 0;
 }
 
 .admin-stats {
@@ -231,6 +242,7 @@
 .queue-actions {
   display: flex;
   flex: 0 0 auto;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   justify-content: flex-end;
@@ -239,6 +251,71 @@
 .queue-actions .compact-button {
   min-height: 38px;
   padding: 8px 10px;
+}
+
+.queue-booking {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(214, 184, 112, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
+    #111111;
+}
+
+.queue-booking.open {
+  border-color: rgba(244, 217, 140, 0.42);
+}
+
+.queue-booking-summary {
+  display: grid;
+  gap: 12px;
+}
+
+.queue-booking-toggle {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.queue-booking-toggle strong,
+.queue-booking-toggle p,
+.queue-booking-toggle small {
+  display: block;
+}
+
+.queue-booking-toggle strong {
+  color: white;
+}
+
+.queue-booking-toggle p,
+.queue-booking-toggle small {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.queue-open-indicator {
+  flex: 0 0 auto;
+  color: var(--gold-bright);
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.queue-booking-panel {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(214, 184, 112, 0.14);
 }
 
 .admin-user-card {
@@ -682,6 +759,19 @@
     align-items: end;
   }
 
+  .admin-toolbar {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .admin-actions {
+    justify-content: flex-end;
+  }
+
+  .admin-actions .secondary-button {
+    flex: 0 1 auto;
+  }
+
   .admin-stats {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -712,6 +802,11 @@
   .admin-user-controls {
     grid-template-columns: 0.8fr 0.6fr 1.2fr auto;
     align-items: end;
+  }
+
+  .queue-booking-summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
   }
 
   .booking-meta {

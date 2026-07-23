@@ -36,6 +36,33 @@ const LAST_RECEIPT_KEY = "legendary.admin.lastReceipt";
 
 const statuses = ["new", "contacted", "scheduled", "in_progress", "complete", "canceled"];
 const paymentStatuses = ["not_started", "pending", "requires_capture", "succeeded", "canceled", "failed"];
+const serviceTierOptions = [
+  "Signature Wash",
+  "Interior Detail",
+  "Inside & Out Detail",
+  "Full Reset Detail",
+  "Executive Showroom Detail"
+];
+const vehicleSizeOptions = [
+  { value: "cars", label: "Car / Sedan / Coupe" },
+  { value: "suvs", label: "SUV / Crossover" },
+  { value: "trucks", label: "Truck / Large SUV" }
+];
+const adminTimeOptions = [
+  "7:00 AM",
+  "8:00 AM",
+  "9:00 AM",
+  "10:00 AM",
+  "11:00 AM",
+  "12:00 PM",
+  "1:00 PM",
+  "2:00 PM",
+  "3:00 PM",
+  "4:00 PM",
+  "5:00 PM",
+  "6:00 PM",
+  "7:00 PM"
+];
 const backendSetupLinks = {
   netlify: "https://app.netlify.com/sites/legendaryautospa/configuration/env",
   supabase: "https://supabase.com/dashboard/projects",
@@ -337,23 +364,53 @@ function renderScheduleQueue(bookings) {
   scheduleQueue.innerHTML = scheduled.map((booking) => {
     const recurring = recurringFrequency(booking);
     const canCaptureThisPayment = canCapturePayment && booking.payment_intent_id && booking.payment_status !== "succeeded";
+    const panelId = queuePanelId(booking);
     return `
-    <article class="activity-item" data-id="${escapeAttribute(booking.id || "")}" data-payment-intent-id="${escapeAttribute(booking.payment_intent_id || "")}">
-      <div>
-        <strong>${escapeHtml(booking.customer_name || "Customer")}${recurring ? ` · ${escapeHtml(recurring)}` : ""}</strong>
-        <p>${escapeHtml(booking.service_tier || "Detail request")} · ${escapeHtml(booking.preferred_date || "No date")} · ${escapeHtml(booking.preferred_time || "No time")}</p>
-        <small>${escapeHtml([booking.vehicle_year, booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(" "))} · ${escapeHtml(booking.service_address || "")}</small>
+    <article class="queue-booking" data-id="${escapeAttribute(booking.id || "")}" data-payment-intent-id="${escapeAttribute(booking.payment_intent_id || "")}">
+      <div class="queue-booking-summary">
+        <button class="queue-booking-toggle" type="button" data-toggle-queue aria-expanded="false" aria-controls="${panelId}">
+          <div>
+            <strong>${escapeHtml(booking.customer_name || "Customer")}${recurring ? ` · ${escapeHtml(recurring)}` : ""}</strong>
+            <p>${escapeHtml(booking.service_tier || "Detail request")} · ${escapeHtml(booking.preferred_date || "No date")} · ${escapeHtml(booking.preferred_time || "No time")}</p>
+            <small>${escapeHtml([booking.vehicle_year, booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(" "))} · ${escapeHtml(booking.service_address || "")}</small>
+          </div>
+          <span class="queue-open-indicator">Open</span>
+        </button>
+        ${canUpdateBookings ? `
+          <div class="queue-actions">
+            <span class="status-pill">${escapeHtml(booking.status || "scheduled")}</span>
+            ${canCaptureThisPayment ? '<button class="secondary-button compact-button" type="button" data-capture>Capture</button>' : ""}
+            <button class="secondary-button compact-button" type="button" data-decline>Decline</button>
+          </div>
+        ` : `<span>${escapeHtml(booking.status || "scheduled")}<small>${formatDate(booking.created_at)}</small></span>`}
       </div>
-      ${canUpdateBookings ? `
-        <div class="queue-actions">
+      <div class="queue-booking-panel hidden" id="${panelId}">
+        <div class="booking-head">
+          <div>
+            <h3><button class="customer-history-button" type="button" data-customer-history="${escapeAttribute(customerHistoryQuery(booking))}">${escapeHtml(booking.customer_name || "Customer")}</button></h3>
+            <p>${escapeHtml(booking.phone || "")} ${booking.email ? `· ${escapeHtml(booking.email)}` : ""}</p>
+          </div>
           <span class="status-pill">${escapeHtml(booking.status || "scheduled")}</span>
-          ${canCaptureThisPayment ? '<button class="secondary-button compact-button" type="button" data-capture>Capture</button>' : ""}
-          <button class="secondary-button compact-button" type="button" data-decline>Decline</button>
         </div>
-      ` : `<span>${escapeHtml(booking.status || "scheduled")}<small>${formatDate(booking.created_at)}</small></span>`}
+
+        ${renderBookingMeta(booking)}
+        ${renderBackendRecords(booking)}
+        ${renderBookingControls(booking, canUpdateBookings, canCapturePayment, {
+          includeSchedulingFields: true,
+          hideAccept: true
+        })}
+      </div>
     </article>
   `;
   }).join("");
+
+  scheduleQueue.querySelectorAll("[data-toggle-queue]").forEach((button) => {
+    button.addEventListener("click", () => toggleQueueBooking(button.closest(".queue-booking")));
+  });
+
+  scheduleQueue.querySelectorAll("[data-save]").forEach((button) => {
+    button.addEventListener("click", () => saveBooking(button.closest("[data-id]")));
+  });
 
   scheduleQueue.querySelectorAll("[data-decline]").forEach((button) => {
     button.addEventListener("click", () => quickUpdateBooking(button.closest("[data-id]"), "canceled"));
@@ -362,6 +419,32 @@ function renderScheduleQueue(bookings) {
   scheduleQueue.querySelectorAll("[data-capture]").forEach((button) => {
     button.addEventListener("click", () => capturePayment(button.closest("[data-id]")));
   });
+
+  scheduleQueue.querySelectorAll("[data-customer-history]").forEach((button) => {
+    button.addEventListener("click", () => {
+      customerSearchInput.value = button.dataset.customerHistory || "";
+      renderFilteredBookings();
+      customerSearchInput.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  });
+}
+
+function queuePanelId(booking) {
+  return `queue-booking-${String(booking.id || "").replace(/[^a-zA-Z0-9_-]/g, "")}`;
+}
+
+function toggleQueueBooking(card) {
+  if (!card) return;
+  const panel = card.querySelector(".queue-booking-panel");
+  const button = card.querySelector("[data-toggle-queue]");
+  const indicator = card.querySelector(".queue-open-indicator");
+  if (!panel || !button || !indicator) return;
+
+  const nextHidden = !panel.classList.contains("hidden");
+  panel.classList.toggle("hidden", nextHidden);
+  card.classList.toggle("open", !nextHidden);
+  button.setAttribute("aria-expanded", nextHidden ? "false" : "true");
+  indicator.textContent = nextHidden ? "Open" : "Close";
 }
 
 function readMemberAccounts() {
@@ -651,9 +734,6 @@ function renderBookings(bookings) {
   const canUpdateBookings = hasAdminRole(["admin", "manager"]);
   const canCapturePayment = hasAdminRole(["admin"]);
   adminBookings.innerHTML = bookings.map((booking) => {
-    const pricing = pricingSummary(booking);
-    const mapsUrl = googleMapsUrl(booking.service_address);
-    const recurring = recurringFrequency(booking);
     return `
     <article class="admin-booking" data-id="${escapeAttribute(booking.id || "")}" data-payment-intent-id="${escapeAttribute(booking.payment_intent_id || "")}">
       <div class="booking-head">
@@ -664,19 +744,7 @@ function renderBookings(bookings) {
         <span class="status-pill">${escapeHtml(booking.status || "new")}</span>
       </div>
 
-      <div class="booking-meta">
-        <div><span>Package</span><strong>${escapeHtml(booking.service_tier)}</strong><p>${escapeHtml(pricing.packageLabel)}</p></div>
-        <div><span>Vehicle</span><strong>${escapeHtml([booking.vehicle_year, booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(" "))}</strong><p>${escapeHtml(booking.vehicle_size)}</p></div>
-        <div><span>Focus</span><strong>${escapeHtml(booking.focus_area)}</strong><p>${escapeHtml(booking.focus_goal)}</p></div>
-        <div><span>Add-ons</span><strong>${escapeHtml(booking.add_ons || "None")}</strong><p>${escapeHtml(pricing.addOnsLabel)}</p></div>
-        <div><span>Estimated total</span><strong>${escapeHtml(pricing.totalLabel)}</strong><p>Package plus selected add-ons</p></div>
-        <div><span>Schedule</span><strong>${escapeHtml(booking.preferred_date)}</strong><p>${escapeHtml(booking.preferred_time)}</p></div>
-        <div><span>Recurring</span><strong>${escapeHtml(recurring || "No")}</strong><p>${escapeHtml(recurring ? "Will repeat after accepted" : "One-time request")}</p></div>
-        <div><span>Location</span><strong>${escapeHtml(booking.service_address)}</strong><p>${escapeHtml(booking.notes)}</p>${mapsUrl ? `<a href="${escapeAttribute(mapsUrl)}" target="_blank" rel="noopener">Open in Google Maps</a>` : ""}</div>
-        <div><span>Payment</span><strong>${escapeHtml(booking.payment_preference)}</strong><p>${escapeHtml(booking.payment_status)}</p></div>
-        <div><span>Assigned</span><strong>${escapeHtml(booking.assigned_to || "Unassigned")}</strong><p>${formatDate(booking.created_at)}</p></div>
-        <div><span>Square</span><strong>${escapeHtml(shortReference(booking.payment_intent_id) || "None")}</strong><p>${escapeHtml(booking.recommended_tier || "")}</p></div>
-      </div>
+      ${renderBookingMeta(booking)}
 
       ${renderBackendRecords(booking)}
 
@@ -714,13 +782,61 @@ function customerHistoryQuery(booking) {
   return booking.phone || booking.email || booking.customer_name || "";
 }
 
-function renderBookingControls(booking, canUpdateBookings, canCapturePayment) {
+function renderBookingMeta(booking) {
+  const pricing = pricingSummary(booking);
+  const mapsUrl = googleMapsUrl(booking.service_address);
+  const recurring = recurringFrequency(booking);
+
+  return `
+    <div class="booking-meta">
+      <div><span>Package</span><strong>${escapeHtml(booking.service_tier)}</strong><p>${escapeHtml(pricing.packageLabel)}</p></div>
+      <div><span>Vehicle</span><strong>${escapeHtml([booking.vehicle_year, booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(" "))}</strong><p>${escapeHtml(vehicleSizeDisplay(booking.vehicle_size))}</p></div>
+      <div><span>Focus</span><strong>${escapeHtml(booking.focus_area)}</strong><p>${escapeHtml(booking.focus_goal)}</p></div>
+      <div><span>Add-ons</span><strong>${escapeHtml(booking.add_ons || "None")}</strong><p>${escapeHtml(pricing.addOnsLabel)}</p></div>
+      <div><span>Estimated total</span><strong>${escapeHtml(pricing.totalLabel)}</strong><p>Package plus selected add-ons</p></div>
+      <div><span>Schedule</span><strong>${escapeHtml(booking.preferred_date)}</strong><p>${escapeHtml(booking.preferred_time)}</p></div>
+      <div><span>Recurring</span><strong>${escapeHtml(recurring || "No")}</strong><p>${escapeHtml(recurring ? "Will repeat after accepted" : "One-time request")}</p></div>
+      <div><span>Location</span><strong>${escapeHtml(booking.service_address)}</strong><p>${escapeHtml(booking.notes)}</p>${mapsUrl ? `<a href="${escapeAttribute(mapsUrl)}" target="_blank" rel="noopener">Open in Google Maps</a>` : ""}</div>
+      <div><span>Payment</span><strong>${escapeHtml(booking.payment_preference)}</strong><p>${escapeHtml(booking.payment_status)}</p></div>
+      <div><span>Assigned</span><strong>${escapeHtml(booking.assigned_to || "Unassigned")}</strong><p>${formatDate(booking.created_at)}</p></div>
+      <div><span>Square</span><strong>${escapeHtml(shortReference(booking.payment_intent_id) || "None")}</strong><p>${escapeHtml(booking.recommended_tier || "")}</p></div>
+    </div>
+  `;
+}
+
+function renderBookingControls(booking, canUpdateBookings, canCapturePayment, options = {}) {
   if (!canUpdateBookings) {
     return '<p class="empty-state permission-note">Viewer access: booking details are read-only.</p>';
   }
 
+  const schedulingFields = options.includeSchedulingFields ? `
+      <label>
+        <span>Wash type</span>
+        <select data-field="service_tier">
+          ${serviceTierOptions.map((tier) => `<option value="${escapeAttribute(tier)}" ${booking.service_tier === tier ? "selected" : ""}>${escapeHtml(tier)}</option>`).join("")}
+        </select>
+      </label>
+      <label>
+        <span>Vehicle type</span>
+        <select data-field="vehicle_size">
+          ${vehicleSizeOptions.map((option) => `<option value="${option.value}" ${booking.vehicle_size === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+      </label>
+      <label>
+        <span>Date</span>
+        <input data-field="preferred_date" type="date" value="${escapeAttribute(booking.preferred_date || "")}">
+      </label>
+      <label>
+        <span>Time</span>
+        <select data-field="preferred_time">
+          ${renderTimeOptions(booking.preferred_time)}
+        </select>
+      </label>
+    ` : "";
+
   return `
     <div class="booking-controls">
+      ${schedulingFields}
       <label>
         <span>Status</span>
         <select data-field="status">
@@ -742,11 +858,24 @@ function renderBookingControls(booking, canUpdateBookings, canCapturePayment) {
         <textarea data-field="private_notes" placeholder="Internal notes">${escapeHtml(booking.private_notes || "")}</textarea>
       </label>
       <button class="primary-button" type="button" data-save>Save changes</button>
-      <button class="secondary-button" type="button" data-accept>Accept</button>
+      ${options.hideAccept ? "" : '<button class="secondary-button" type="button" data-accept>Accept</button>'}
       <button class="secondary-button" type="button" data-decline>Decline</button>
       ${canCapturePayment && booking.payment_intent_id ? '<button class="secondary-button" type="button" data-capture>Capture payment</button>' : ""}
     </div>
   `;
+}
+
+function renderTimeOptions(currentValue) {
+  const values = currentValue && !adminTimeOptions.includes(currentValue)
+    ? [currentValue, ...adminTimeOptions]
+    : adminTimeOptions;
+  return [`<option value="" ${currentValue ? "" : "selected"}>Select time</option>`]
+    .concat(values.map((value) => `<option value="${escapeAttribute(value)}" ${currentValue === value ? "selected" : ""}>${escapeHtml(value)}</option>`))
+    .join("");
+}
+
+function vehicleSizeDisplay(value) {
+  return vehicleSizeOptions.find((option) => option.value === value)?.label || value || "Not set";
 }
 
 function renderBackendRecords(booking) {
@@ -876,14 +1005,24 @@ async function saveBooking(card) {
   const button = card.querySelector("[data-save]");
   button.textContent = "Saving...";
   try {
-    await api("update-booking", {
+    const data = await api("update-booking", {
       method: "PATCH",
       body: JSON.stringify(payload)
     });
-    button.textContent = "Saved";
+    if (data.customer_notification?.ok) {
+      adminActionStatus.textContent = "Changes saved and the customer received an updated text message.";
+      button.textContent = "Saved + texted";
+    } else if (data.customer_notification && data.customer_notification.ok === false) {
+      adminActionStatus.textContent = `Changes saved, but customer text failed: ${data.customer_notification.message}`;
+      button.textContent = "Saved";
+    } else {
+      adminActionStatus.textContent = "Changes saved.";
+      button.textContent = "Saved";
+    }
     await loadBookings();
   } catch (error) {
     button.textContent = error.message;
+    adminActionStatus.textContent = error.message;
   }
 }
 
